@@ -67,14 +67,6 @@
                 </div>
                 @include('layouts.partials.update-profile-information-form')
             </div>
-
-            <div class="card-profile">
-                <div class="d-flex align-items-center gap-2 mb-4">
-                    <i class="fa-solid fa-shield-halved text-primary fs-5"></i>
-                    <h5 class="fw-bold mb-0">Keamanan Password</h5>
-                </div>
-                @include('layouts.partials.update-password-form')
-            </div>
         </div>
 
         <div class="col-lg-4">
