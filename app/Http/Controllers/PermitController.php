@@ -246,6 +246,9 @@ class PermitController extends Controller
     /**
      * --- UPDATE PERMIT (SIMPAN PERUBAHAN) ---
      */
+    /**
+     * --- UPDATE PERMIT (SIMPAN PERUBAHAN) ---
+     */
     public function update(Request $request, $id)
     {
         $permit = Permit::findOrFail($id);
@@ -255,51 +258,66 @@ class PermitController extends Controller
         try {
             DB::beginTransaction();
             
+            // 1. VALIDASI: Gunakan 'sometimes' agar masteradmin bisa edit sebagian saja tanpa error
             $request->validate([
-                'pic_lead' => 'required|string|max:255',
+                'pic_lead' => 'sometimes|required|string|max:255',
                 'pic_batamindo' => 'nullable|string|max:255',
                 'hazard_other' => 'nullable|string|max:255',
-                'man_power'            => 'required|integer|min:1',
+                'man_power' => 'sometimes|required|integer|min:1',
                 'ppe_other' => 'nullable|array',
                 'ref_doc' => 'nullable|string|max:255',
-                'valid_from' => 'required|date',
-                'valid_until' => 'required|date|after:valid_from',
+                'valid_from' => 'sometimes|required|date',
+                'valid_until' => 'sometimes|required|date|after:valid_from',
             ]);
 
+            // 2. AMBIL SEMUA INPUT
             $data = $request->all();
+
+            // 3. LOGIKA ARRAY (Checkbox): Pastikan jika kosong, tetap dikirim sebagai array kosong []
             $data['permit_type'] = $request->input('permit_type', $permit->permit_type);
             $data['hazards'] = $request->input('hazards', []);
             $data['ppe'] = $request->input('ppe', []);
             $data['safety_checklists'] = $request->input('safety_checklists', []);
-            $data['hazard_other'] = $request->input('hazard_other');
             $data['ppe_other'] = $request->input('ppe_other', []);
-            $data['ref_doc'] = $request->input('ref_doc');
 
+            // 4. LOGIKA BOOLEAN (Checkbox Persetujuan)
             $data['agreed_to_terms'] = $request->has('agreed_to_terms') ? 1 : 0;
             $data['applicant_confirmation'] = $request->has('applicant_confirmation') ? 1 : 0;
 
+            // 5. PENANGANAN FILE: Hapus file lama jika ada upload file baru
             $fileFields = ['jsa_file', 'hiradc_file', 'worker_list_file', 'competency_cert_file', 'work_procedure_file', 'tool_cert_file'];
             foreach ($fileFields as $field) {
                 if ($request->hasFile($field)) {
-                    if ($permit->$field) { Storage::disk('public')->delete($permit->$field); }
+                    // Hapus file fisik lama di Railway agar tidak menumpuk
+                    if ($permit->$field) { 
+                        Storage::disk('public')->delete($permit->$field); 
+                    }
                     $data[$field] = $request->file($field)->store('permits/documents', 'public');
+                } else {
+                    // Jika tidak upload file baru, tetap gunakan path file lama
+                    unset($data[$field]); 
                 }
             }
 
-            if (in_array($role, ['master', 'admin', 'superadmin']) && $permit->status !== Permit::STATUS_PENDING) {
-                $data['last_revision_note'] = $request->revision_note ?? 'Revisi oleh Administrator';
+            // 6. CATATAN REVISI: Khusus untuk Admin/Master
+            if (in_array($role, ['master', 'superadmin', 'admin', 'hse/safety', 'hse'])) {
+                $data['last_revision_note'] = $request->revision_note ?? 'Diperbarui oleh Administrator pada ' . now()->format('d/m/Y H:i');
             }
 
+            // 7. EKSEKUSI UPDATE
             $permit->update($data);
+            
             DB::commit();
             
+            // 8. REDIRECT: Arahkan kembali ke halaman manajemen ptw
             $targetRoute = in_array($role, ['master', 'admin', 'superadmin']) ? 'superadmin.edit_ptw' : 'dashboard';
-            return redirect()->route($targetRoute)->with('success', 'Permit berhasil diperbarui!');
+            
+            return redirect()->route($targetRoute)->with('success', 'Perubahan Permit ID: ' . $id . ' Berhasil Disimpan!');
             
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error("Error Update Permit: " . $e->getMessage());
-            return back()->withInput()->withErrors(['msg' => 'Gagal: ' . $e->getMessage()]);
+            Log::error("Gagal Update Permit: " . $e->getMessage());
+            return back()->withInput()->withErrors(['msg' => 'Gagal Update: ' . $e->getMessage()]);
         }
     }
 
