@@ -146,7 +146,7 @@
                 <div class="stat-card">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);"><i class="fas fa-hard-hat"></i></div>
                         <div class="stat-content">
-                        <h4>{{ $isKontraktor ? 1 : $permits->unique('company')->count() }}</h4>
+                        <h4>{{ $totalKontraktor ?? ($isKontraktor ? 1 : $permits->unique('company')->count()) }}</h4>
                         <small>Total Kontraktor</small>
                     </div>
                 </div>

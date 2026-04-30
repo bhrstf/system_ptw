@@ -37,8 +37,10 @@ class UserController extends Controller
         $stats = [
             'total_users'      => User::count(),
             'admin_count'      => User::whereIn('role', ['admin', 'superadmin', 'master'])->count(),
-            'kontraktor_count' => User::where('role', 'kontraktor')->count(),
-            'hse_count'        => User::where('role', 'HSE/Safety')->count(),
+            // Case-insensitive, trimmed role comparison to include variations like "Kontraktor" or trailing spaces
+            'kontraktor_count' => User::whereRaw("LOWER(TRIM(role)) = ?", ['kontraktor'])->count(),
+            // HSE can be stored as 'hse', 'HSE/Safety', etc. Match any role containing 'hse' (case-insensitive)
+            'hse_count'        => User::whereRaw("LOWER(role) LIKE ?", ['%hse%'])->count(),
         ];
 
         return view('superadmin.users', compact('users', 'stats'));

@@ -63,14 +63,12 @@ class PermitController extends Controller
         if ($role === 'kontraktor') {
             $totalKontraktor = 1; 
         } elseif (in_array($role, ['hse', 'hse/safety', 'master', 'admin', 'superadmin'])) {
-            // Hitung dari database Users: Berapa banyak akun yang rolenya kontraktor
-            $totalKontraktor = User::where('role', 'kontraktor')
-                                   ->orWhere('role', 'Kontraktor')
-                                   ->orWhere('role', 'KONTRAKTOR')
-                                   ->count();
+            // Pakai '%kontraktor%' biar spasi nyempil di database tetap terhitung
+            $totalKontraktor = User::where('role', 'LIKE', '%kontraktor%')->count();
         } else {
             $totalKontraktor = 0;
         }
+        
 
         return view('dashboard', compact(
             'permits', 
@@ -455,4 +453,4 @@ class PermitController extends Controller
             return back()->with('error', 'Gagal memperbarui status.');
         }
     }
-}
+}   
