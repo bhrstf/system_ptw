@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log; // Penting untuk mencatat error email
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
 use Illuminate\Validation\Rules\Password;
@@ -29,12 +30,13 @@ class RegisteredUserController extends Controller
     public function store(Request $request)
     {
         // --- 1. LOGIKA PINTAR: CEK USER YANG SUDAH DAFTAR TAPI BELUM VERIFIKASI ---
+        // Jika email sudah ada tapi belum diverifikasi, kirim ulang OTP saja tanpa error "Email sudah digunakan"
         $existingUser = User::where('email', $request->email)->first();
 
         if ($existingUser && $existingUser->is_verified == false) {
             $otpCode = rand(100000, 999999);
             
-            // Update OTP baru dan perpanjang waktu kadaluarsa
+            // Update OTP baru dan perpanjang waktu kadaluarsa jadi 10 menit
             $existingUser->update([
                 'otp_code' => $otpCode,
                 'otp_expires_at' => Carbon::now()->addMinutes(10),
@@ -46,17 +48,18 @@ class RegisteredUserController extends Controller
                     $message->to($existingUser->email)->subject('Kode Verifikasi OTP Baru - PTW System');
                 });
             } catch (\Exception $e) {
-                // Tetap lanjut ke halaman OTP meskipun email gagal (untuk bypass saat testing)
+                // Catat error di log Railway tapi jangan hentikan proses agar tidak muncul error 500
+                Log::error("Gagal kirim ulang email ke " . $existingUser->email . ": " . $e->getMessage());
             }
 
-            // Simpan JWT token baru ke session
+            // Simpan JWT token baru ke session untuk verifikasi
             $token = JWTAuth::fromUser($existingUser);
             session(['otp_token' => $token]);
 
             return redirect()->route('otp.verify')->with('success', 'Email ini sudah terdaftar sebelumnya. Kode OTP baru telah dikirim!');
         }
 
-        // --- 2. VALIDASI INPUT (Jika email belum ada di database) ---
+        // --- 2. VALIDASI INPUT (Hanya jalan jika email belum ada di database) ---
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'unique:users,username'],
@@ -95,24 +98,28 @@ class RegisteredUserController extends Controller
         ]);
 
         // --- 5. NOTIFIKASI KE MASTER ADMIN ---
-        $masters = User::whereIn('role', ['master', 'superadmin'])->get();
-        if ($masters->count() > 0) {
-            Notification::send(
-                $masters, 
-                new NewAccountNotification(
-                    'Pendaftaran Akun Baru', 
-                    'Pengguna baru atas nama <strong>' . $user->name . '</strong> telah mendaftar dengan role <strong>' . strtoupper($user->role) . '</strong>.'
-                )
-            );
+        try {
+            $masters = User::whereIn('role', ['master', 'superadmin'])->get();
+            if ($masters->count() > 0) {
+                Notification::send(
+                    $masters, 
+                    new NewAccountNotification(
+                        'Pendaftaran Akun Baru', 
+                        'Pengguna baru atas nama <strong>' . $user->name . '</strong> telah mendaftar dengan role <strong>' . strtoupper($user->role) . '</strong>.'
+                    )
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error("Gagal mengirim notifikasi admin: " . $e->getMessage());
         }
 
-        // --- 6. KIRIM OTP VIA EMAIL ---
+        // --- 6. KIRIM OTP VIA EMAIL (Bungkus try-catch agar tidak crash jika SMTP bermasalah) ---
         try {
             Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($user) {
                 $message->to($user->email)->subject('Kode Verifikasi OTP - PTW System');
             });
         } catch (\Exception $e) {
-            // Error ditangani secara silent agar tidak crash
+            Log::error("Gagal mengirim email pendaftaran ke " . $user->email . ": " . $e->getMessage());
         }
 
         // --- 7. GENERATE TOKEN & REDIRECT ---
