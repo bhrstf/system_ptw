@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log; // Penting untuk mencatat error email
+use Illuminate\Support\Facades\Log; 
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
 use Illuminate\Validation\Rules\Password;
@@ -29,75 +29,105 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request)
     {
-        // --- 1. LOGIKA PINTAR: CEK USER YANG SUDAH DAFTAR TAPI BELUM VERIFIKASI ---
-        // Jika email sudah ada tapi belum diverifikasi, kirim ulang OTP saja tanpa error "Email sudah digunakan"
+        // ===================================================================
+        // 1. VALIDASI UTAMA: CEK EMAIL, NPK, DAN PERUSAHAAN
+        // ===================================================================
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+            'role' => ['required', 'in:HSE,Safety,Kontraktor'], 
+            'verification_code' => ['nullable', 'string'],
+        ], [
+            'email.required' => 'Kolom email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Alamat email sudah terdaftar. Silakan gunakan email lain atau masuk ke akun Anda.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+        ]);
+
+        $role = $request->role;
+
+        // Cek Nama Perusahaan: Khusus role Kontraktor
+        if ($role === 'Kontraktor') {
+            if (!$request->filled('company')) {
+                return back()->withErrors(['company' => 'Nama Perusahaan wajib diisi untuk Kontraktor!'])->withInput();
+            }
+
+            // Memastikan nama perusahaan dicek secara case-insensitive (tidak sensitif huruf besar/kecil)
+            $companyExists = User::whereRaw('LOWER(company) = ?', [strtolower($request->company)])->exists();
+            if ($companyExists) {
+                return back()->withErrors(['company' => 'Perusahaan ini sudah terdaftar di sistem. Gunakan akun yang sudah ada.'])->withInput();
+            }
+        }
+
+        // Cek NPK: Khusus role HSE/Safety
+        if (in_array($role, ['HSE', 'Safety'])) {
+            if (!$request->filled('username')) {
+                return back()->withErrors(['username' => 'NPK wajib diisi untuk role HSE/Safety!'])->withInput();
+            }
+
+            $npkExists = User::where('username', $request->username)->exists();
+            if ($npkExists) {
+                return back()->withErrors(['username' => 'NPK ini sudah terdaftar di sistem!'])->withInput();
+            }
+
+            // Validasi Kode Rahasia HSE
+            $secretKey = env('HSE_SECRET_CODE');
+            if ($request->verification_code !== $secretKey) {
+                return back()->withErrors(['verification_code' => 'Kode Verifikasi HSE Salah!'])->withInput();
+            }
+        }
+
+        // ===================================================================
+        // 2. LOGIKA USER YANG SUDAH DAFTAR TAPI BELUM VERIFIKASI (OTP)
+        // ===================================================================
         $existingUser = User::where('email', $request->email)->first();
 
         if ($existingUser && $existingUser->is_verified == false) {
             $otpCode = rand(100000, 999999);
             
-            // Update OTP baru dan perpanjang waktu kadaluarsa jadi 10 menit
             $existingUser->update([
                 'otp_code' => $otpCode,
                 'otp_expires_at' => Carbon::now()->addMinutes(10),
             ]);
 
-            // Kirim ulang email OTP
             try {
                 Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($existingUser) {
                     $message->to($existingUser->email)->subject('Kode Verifikasi OTP Baru - PTW System');
                 });
             } catch (\Exception $e) {
-                // Catat error di log Railway tapi jangan hentikan proses agar tidak muncul error 500
                 Log::error("Gagal kirim ulang email ke " . $existingUser->email . ": " . $e->getMessage());
             }
 
-            // Simpan JWT token baru ke session untuk verifikasi
             $token = JWTAuth::fromUser($existingUser);
             session(['otp_token' => $token]);
 
             return redirect()->route('otp.verify')->with('success', 'Email ini sudah terdaftar sebelumnya. Kode OTP baru telah dikirim!');
         }
 
-        // --- 2. VALIDASI INPUT (Hanya jalan jika email belum ada di database) ---
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'username' => ['required', 'string', 'unique:users,username'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::defaults()],
-            'role' => ['required'],
-            'verification_code' => ['nullable', 'string'],
-        ], [
-            'username.unique' => 'NPK atau Nama Perusahaan ini sudah terdaftar!',
-            'email.unique' => 'Email sudah digunakan.',
-            'password.confirmed' => 'Konfirmasi password tidak cocok.',
-        ]);
-
-        // --- 3. FILTER KHUSUS ROLE HSE ---
-        if ($request->role === 'HSE/Safety') {
-            $secretKey = env('HSE_SECRET_CODE');
-            if ($request->verification_code !== $secretKey) {
-                return back()
-                    ->withErrors(['verification_code' => 'Kode Verifikasi HSE Salah!'])
-                    ->withInput();
-            }
-        }
-
-        // --- 4. GENERATE DATA USER BARU ---
+        // ===================================================================
+        // 3. GENERATE DATA USER BARU
+        // ===================================================================
         $otpCode = rand(100000, 999999);
+
+        $usernameValue = in_array($role, ['HSE', 'Safety']) ? $request->username : $request->email;
+        $companyValue = $role === 'Kontraktor' ? $request->company : null;
 
         $user = User::create([
             'name' => $request->name,
-            'username' => $request->username,
+            'username' => $usernameValue, 
             'email' => $request->email,
-            'role' => $request->role,
+            'role' => $role,
+            'company' => $companyValue,  
             'password' => Hash::make($request->password),
             'otp_code' => $otpCode,
             'otp_expires_at' => Carbon::now()->addMinutes(10), 
             'is_verified' => false,
         ]);
 
-        // --- 5. NOTIFIKASI KE MASTER ADMIN ---
+        // ===================================================================
+        // 4. NOTIFIKASI KE MASTER ADMIN
+        // ===================================================================
         try {
             $masters = User::whereIn('role', ['master', 'superadmin'])->get();
             if ($masters->count() > 0) {
@@ -113,7 +143,9 @@ class RegisteredUserController extends Controller
             Log::error("Gagal mengirim notifikasi admin: " . $e->getMessage());
         }
 
-        // --- 6. KIRIM OTP VIA EMAIL (Bungkus try-catch agar tidak crash jika SMTP bermasalah) ---
+        // ===================================================================
+        // 5. KIRIM OTP VIA EMAIL
+        // ===================================================================
         try {
             Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($user) {
                 $message->to($user->email)->subject('Kode Verifikasi OTP - PTW System');
@@ -122,7 +154,9 @@ class RegisteredUserController extends Controller
             Log::error("Gagal mengirim email pendaftaran ke " . $user->email . ": " . $e->getMessage());
         }
 
-        // --- 7. GENERATE TOKEN & REDIRECT ---
+        // ===================================================================
+        // 6. GENERATE TOKEN & REDIRECT
+        // ===================================================================
         $token = JWTAuth::fromUser($user);
         session(['otp_token' => $token]);
 

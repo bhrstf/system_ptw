@@ -17,7 +17,7 @@ use Illuminate\View\View;
 class NewPasswordController extends Controller
 {
     /**
-     * Display the password reset view.
+     * Tampilkan halaman formulir reset password.
      */
     public function create(Request $request): View
     {
@@ -25,21 +25,20 @@ class NewPasswordController extends Controller
     }
 
     /**
-     * Handle an incoming new password request.
+     * Proses pengubahan kata sandi baru.
      *
      * @throws ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
+        // 1. Validasi input dari form reset-password.blade.php
         $request->validate([
             'token' => ['required'],
             'email' => ['required', 'email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Here we will attempt to reset the user's password. If it is successful we
-        // will update the password on an actual user model and persist it to the
-        // database. Otherwise we will parse the error and return the response.
+        // 2. Eksekusi reset password menggunakan broker bawaan Laravel
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user) use ($request) {
@@ -52,12 +51,12 @@ class NewPasswordController extends Controller
             }
         );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
+        // 3. Cek apakah proses reset sukses atau gagal
+        // Jika sukses, user dialihkan ke halaman login dengan pesan sukses.
+        // Jika gagal, user dikembalikan ke form dengan membawa pesan error.
         return $status == Password::PASSWORD_RESET
-                    ? redirect()->route('login')->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+            ? redirect()->route('login')->with('status', __($status))
+            : back()->withInput($request->only('email'))
+                ->withErrors(['email' => __($status)]);
     }
 }

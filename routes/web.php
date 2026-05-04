@@ -15,6 +15,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\Auth\OtpVerifyController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\NewPasswordController; // <-- Tambahan import controller untuk reset password
 
 // Import Model & Middleware
 use App\Models\Permit;
@@ -203,5 +204,17 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/history/print/{id}', [HistoriesController::class, 'pdf_ptw'])->name('history.pdf_ptw');
 
 });
+
+/**
+ * =========================================================================
+ * --- FIX ERROR 405: JALUR KHUSUS RESET PASSWORD ---
+ * =========================================================================
+ */
+// Gunakan match untuk mendukung POST dan PUT sekaligus agar tidak ada bentrok method
+Route::match(['post', 'put'], '/reset-password', [NewPasswordController::class, 'store'])
+    ->name('password.update');
+
+// Tambahkan juga alias route 'password' yang diminta error tersebut
+Route::match(['post', 'put'], '/password', [NewPasswordController::class, 'store']);
 
 require __DIR__.'/auth.php';

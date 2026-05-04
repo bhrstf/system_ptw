@@ -7,6 +7,7 @@ use App\Mail\SendOtpMail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 use Laravel\Jetstream\Jetstream;
 use Carbon\Carbon;
@@ -23,10 +24,19 @@ class CreateNewUser implements CreatesNewUsers
     {
         // 1. Validasi Input (Pastikan field username dan role ada)
         Validator::make($input, [
-            'role' => ['required', 'string', 'in:hse,maintenance,area,kontraktor'],
+            'role' => ['required', 'string', function ($attribute, $value, $fail) {
+                $allowed = ['hse','safety','maintenance','area','kontraktor','kontraktor'];
+                if (!in_array(strtolower($value), $allowed)) {
+                    $fail('Role tidak valid.');
+                }
+            }],
             'name' => ['required', 'string', 'max:255'],
-            'username' => ['required', 'string', 'max:255', 'unique:users'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'username' => ['required', 'string', 'max:255', Rule::unique('users', 'username')],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
+            // company: wajib jika role kontraktor; bila diisi harus unik
+            'company' => [Rule::requiredIf(function () use ($input) {
+                return isset($input['role']) && strtolower($input['role']) === 'kontraktor';
+            }), 'nullable', 'string', 'max:255', Rule::unique('users', 'company')],
             'password' => $this->passwordRules(),
             'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature() ? ['accepted', 'required'] : '',
         ])->validate();
@@ -41,6 +51,7 @@ class CreateNewUser implements CreatesNewUsers
             'username' => $input['username'], // NPK atau Nama Perusahaan
             'email' => $input['email'],
             'role' => $input['role'],
+            'company' => $input['company'] ?? null,
             'password' => Hash::make($input['password']),
             'otp_code' => $otpCode,
             'otp_expires_at' => $expiresAt,

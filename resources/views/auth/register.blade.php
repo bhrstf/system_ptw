@@ -75,7 +75,7 @@
     </div>
 
     <div class="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-16 bg-white overflow-y-auto">
-        <div class="w-full max-w-md" x-data="{ role: '{{ old('role', 'Internal Maintenance') }}' }">
+        <div class="w-full max-w-md" x-data="{ role: '{{ old('role', 'HSE') }}', showPassword: false, showConfirmPassword: false }">
             
             <div class="mb-10">
                 <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Buat Akun</h2>
@@ -98,13 +98,23 @@
                 <div>
                     <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block ml-1">Daftar Sebagai</label>
                     <select name="role" x-model="role" class="w-full px-5 py-4 rounded-2xl input-modern text-sm font-semibold text-gray-700 appearance-none cursor-pointer">
-                        <option value="HSE/Safety">HSE / Safety Batamindo</option>
+                        <option value="HSE">HSE / Safety Batamindo</option>
                         <option value="Kontraktor">Kontraktor</option>
                     </select>
                 </div>
 
-                <template x-if="role === 'HSE/Safety'">
-                    <div x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform -translate-y-2">
+                <div x-show="role === 'HSE'" class="space-y-5" x-transition:enter="transition ease-out duration-300">
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block ml-1">NPK</label>
+                        <input type="text" name="username" value="{{ old('username') }}" 
+                            class="w-full px-5 py-4 rounded-2xl input-modern text-sm font-semibold text-gray-700 @error('username') input-error @enderror" 
+                            placeholder="Masukkan NPK Anda">
+                        @error('username')
+                            <p class="text-red-500 text-[10px] mt-1 ml-1 font-bold italic">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
                         <label class="text-[11px] font-bold text-red-600 uppercase tracking-widest mb-2 block ml-1 italic">Kode Verifikasi Khusus HSE</label>
                         <input type="password" name="verification_code" 
                             class="w-full px-5 py-4 rounded-2xl input-modern border-red-200 text-sm font-semibold text-gray-700 @error('verification_code') input-error @enderror" 
@@ -113,16 +123,14 @@
                             <p class="text-red-500 text-[10px] mt-1 ml-1 font-bold italic">{{ $message }}</p>
                         @enderror
                     </div>
-                </template>
+                </div>
 
-                <div>
-                    <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block ml-1" 
-                        x-text="role === 'Kontraktor' ? 'Nama Perusahaan' : 'NPK'"></label>
-                    <input type="text" name="username" value="{{ old('username') }}" required 
-                        class="w-full px-5 py-4 rounded-2xl input-modern text-sm font-semibold text-gray-700 @error('username') input-error @enderror" 
-                        :placeholder="role === 'Kontraktor' ? 'Contoh: PT. Maju Jaya' : 'Masukkan NPK'">
-                    
-                    @error('username')
+                <div x-show="role === 'Kontraktor'" x-transition:enter="transition ease-out duration-300">
+                    <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block ml-1">Nama Perusahaan</label>
+                    <input type="text" name="company" value="{{ old('company') }}" 
+                        class="w-full px-5 py-4 rounded-2xl input-modern text-sm font-semibold text-gray-700 @error('company') input-error @enderror" 
+                        placeholder="Contoh: PT. Maju Jaya">
+                    @error('company')
                         <p class="text-red-500 text-[10px] mt-1 ml-1 font-bold italic">{{ $message }}</p>
                     @enderror
                 </div>
@@ -140,18 +148,41 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block ml-1">Password</label>
-                        <input type="password" name="password" required 
-                            class="w-full px-5 py-4 rounded-2xl input-modern text-sm font-semibold text-gray-700 @error('password') input-error @enderror" 
-                            placeholder="••••">
+                        <div class="relative">
+                            <input :type="showPassword ? 'text' : 'password'" name="password" required 
+                                class="w-full px-5 py-4 pr-12 rounded-2xl input-modern text-sm font-semibold text-gray-700 @error('password') input-error @enderror" 
+                                placeholder="••••">
+                            <button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none">
+                                <svg x-show="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                <svg x-show="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"></path>
+                                </svg>
+                            </button>
+                        </div>
                         @error('password')
                             <p class="text-red-500 text-[10px] mt-1 ml-1 font-bold italic">{{ $message }}</p>
                         @enderror
                     </div>
+                    
                     <div>
                         <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block ml-1">Konfirmasi</label>
-                        <input type="password" name="password_confirmation" required 
-                            class="w-full px-5 py-4 rounded-2xl input-modern text-sm font-semibold text-gray-700" 
-                            placeholder="••••">
+                        <div class="relative">
+                            <input :type="showConfirmPassword ? 'text' : 'password'" name="password_confirmation" required 
+                                class="w-full px-5 py-4 pr-12 rounded-2xl input-modern text-sm font-semibold text-gray-700" 
+                                placeholder="••••">
+                            <button type="button" @click="showConfirmPassword = !showConfirmPassword" class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none">
+                                <svg x-show="!showConfirmPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                <svg x-show="showConfirmPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
