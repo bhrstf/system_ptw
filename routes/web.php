@@ -212,7 +212,7 @@ Route::middleware(['auth'])->group(function () {
  */
 // Gunakan match untuk mendukung POST dan PUT sekaligus agar tidak ada bentrok method
 Route::match(['post', 'put'], '/reset-password', [NewPasswordController::class, 'store'])
-    ->name('password.update');
+    ->name('password.reset.update');
 
 // Tambahkan juga alias route 'password' yang diminta error tersebut
 Route::match(['post', 'put'], '/password', [NewPasswordController::class, 'store']);
