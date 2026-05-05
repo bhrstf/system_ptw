@@ -42,7 +42,7 @@ class OtpVerifyController extends Controller
             $pending = session('pending_registration');
             $expires = Carbon::parse($pending['otp_expires_at']);
 
-            if ($pending['otp_code'] === $otpCode && Carbon::now()->before($expires)) {
+            if ($pending['otp_code'] === $otpCode && Carbon::now()->lt($expires)) {
                 // Buat user di DB
                 $newUser = User::create([
                     'name' => $pending['name'],
@@ -70,7 +70,7 @@ class OtpVerifyController extends Controller
             $user = JWTAuth::setToken(session('otp_token'))->toUser();
 
             // Pastikan kolom otp_code & otp_expires_at ada di DB
-            if ($user->otp_code === $otpCode && Carbon::now()->before($user->otp_expires_at)) {
+            if ($user->otp_code === $otpCode && Carbon::now()->lt(Carbon::parse($user->otp_expires_at))) {
                 $user->update([
                     'is_verified' => true,
                     'email_verified_at' => now(),
