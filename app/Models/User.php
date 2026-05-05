@@ -29,6 +29,7 @@ class User extends Authenticatable implements JWTSubject
         'role',    
         'company',      
         'is_verified',   
+        'email_verified_at',
         'otp_code',      
         'otp_expires_at',
         'profile_photo_path' // <-- WAJIB ADA INI SAYANG

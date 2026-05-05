@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\Log;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Support\Facades\Notification;
-use App\Notifications\NewAccountNotification;
 
 class RegisteredUserController extends Controller
 {
@@ -106,60 +104,38 @@ class RegisteredUserController extends Controller
         }
 
         // ===================================================================
-        // 3. GENERATE DATA USER BARU
+        // 3. SIMPAN SEMENTARA DATA PENDAFTARAN DI SESSION (PENDING)
+        //    -> User TIDAK langsung dibuat di DB sampai verifikasi OTP berhasil
         // ===================================================================
         $otpCode = rand(100000, 999999);
 
         $usernameValue = in_array($role, ['HSE', 'Safety']) ? $request->username : $request->email;
         $companyValue = $role === 'Kontraktor' ? $request->company : null;
 
-        $user = User::create([
+        // Simpan data pendaftaran di session (pending)
+        $pending = [
             'name' => $request->name,
-            'username' => $usernameValue, 
+            'username' => $usernameValue,
             'email' => $request->email,
             'role' => $role,
-            'company' => $companyValue,  
-            'password' => Hash::make($request->password),
-            'otp_code' => $otpCode,
-            'otp_expires_at' => Carbon::now()->addMinutes(10), 
-            'is_verified' => false,
-        ]);
+            'company' => $companyValue,
+            'password' => $request->password, // simpan plain, akan di-hash saat buat user (model cast 'password' => 'hashed')
+            'otp_code' => (string) $otpCode,
+            'otp_expires_at' => Carbon::now()->addMinutes(10)->toDateTimeString(),
+        ];
 
-        // ===================================================================
-        // 4. NOTIFIKASI KE MASTER ADMIN
-        // ===================================================================
-        try {
-            $masters = User::whereIn('role', ['master', 'superadmin'])->get();
-            if ($masters->count() > 0) {
-                Notification::send(
-                    $masters, 
-                    new NewAccountNotification(
-                        'Pendaftaran Akun Baru', 
-                        'Pengguna baru atas nama <strong>' . $user->name . '</strong> telah mendaftar dengan role <strong>' . strtoupper($user->role) . '</strong>.'
-                    )
-                );
-            }
-        } catch (\Exception $e) {
-            Log::error("Gagal mengirim notifikasi admin: " . $e->getMessage());
-        }
+        session(['pending_registration' => $pending]);
 
-        // ===================================================================
-        // 5. KIRIM OTP VIA EMAIL
-        // ===================================================================
+        // Kirim OTP ke email pendaftar
         try {
-            Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($user) {
-                $message->to($user->email)->subject('Kode Verifikasi OTP - PTW System');
+            Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($request) {
+                $message->to($request->email)->subject('Kode Verifikasi OTP - PTW System');
             });
         } catch (\Exception $e) {
-            Log::error("Gagal mengirim email pendaftaran ke " . $user->email . ": " . $e->getMessage());
+            Log::error("Gagal mengirim email pendaftaran ke " . $request->email . ": " . $e->getMessage());
         }
 
-        // ===================================================================
-        // 6. GENERATE TOKEN & REDIRECT
-        // ===================================================================
-        $token = JWTAuth::fromUser($user);
-        session(['otp_token' => $token]);
-
+        // Redirect ke halaman verifikasi OTP (session berisi pending_registration)
         return redirect()->route('otp.verify')->with('success', 'Registrasi berhasil! Silakan cek email Anda untuk kode OTP.');
     }
 }

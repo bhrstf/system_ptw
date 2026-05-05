@@ -16,8 +16,8 @@ class OtpVerifyController extends Controller
      */
     public function show()
     {
-        // Pastikan ada token JWT di session
-        if (!session('otp_token')) {
+        // Pastikan ada sesi verifikasi: bisa berupa token untuk user existing atau pending_registration untuk registrasi baru
+        if (!session('otp_token') && !session('pending_registration')) {
             return redirect()->route('register')->withErrors(['error' => 'Sesi verifikasi tidak ditemukan.']);
         }
 
@@ -37,26 +37,49 @@ class OtpVerifyController extends Controller
         // Gabungkan array [1,2,3,4,5,6] jadi string "123456"
         $otpCode = implode('', $request->otp);
 
+        // 1) Jika ada pending_registration di session => buat user baru setelah OTP cocok
+        if (session('pending_registration')) {
+            $pending = session('pending_registration');
+            $expires = Carbon::parse($pending['otp_expires_at']);
+
+            if ($pending['otp_code'] === $otpCode && Carbon::now()->before($expires)) {
+                // Buat user di DB
+                $newUser = User::create([
+                    'name' => $pending['name'],
+                    'username' => $pending['username'],
+                    'email' => $pending['email'],
+                    'role' => $pending['role'],
+                    'company' => $pending['company'] ?? null,
+                    'password' => $pending['password'],
+                    'is_verified' => true,
+                    'email_verified_at' => now(),
+                ]);
+
+                // Hapus sesi pending dan kembalikan pesan sukses
+                session()->forget('pending_registration');
+
+                return redirect()->route('login')->with('success', 'Akun berhasil diverifikasi dan disimpan. Silakan login.');
+            }
+
+            return back()->withErrors(['otp' => 'Kode OTP salah atau sudah kadaluarsa.']);
+        }
+
+        // 2) Jika tidak ada pending, coba alur untuk user existing (token JWT)
         try {
             // Ambil user berdasarkan token JWT dari session
             $user = JWTAuth::setToken(session('otp_token'))->toUser();
 
-            // 1. Cek kecocokan kode & waktu expired
-            // Pastikan kolom otp_code & otp_expires_at ada di DB (Lihat Migration di bawah)
+            // Pastikan kolom otp_code & otp_expires_at ada di DB
             if ($user->otp_code === $otpCode && Carbon::now()->before($user->otp_expires_at)) {
-                
-                // 2. Update Status Verifikasi
                 $user->update([
                     'is_verified' => true,
-                    'email_verified_at' => now(), // Opsional jika ingin sinkron dengan Laravel
+                    'email_verified_at' => now(),
                     'otp_code' => null,
                     'otp_expires_at' => null
                 ]);
 
-                // 3. Hapus token sementara agar tidak bisa dipakai lagi
                 session()->forget('otp_token');
 
-                // 4. Redirect ke Login (Sesuai diskusi: Biar user login manual demi keamanan)
                 return redirect()->route('login')->with('success', 'Akun berhasil diverifikasi! Silakan login menggunakan NPK/Nama Perusahaan Anda.');
             }
 
