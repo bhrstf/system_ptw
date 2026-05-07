@@ -94,7 +94,15 @@ class RegisteredUserController extends Controller
                     $message->to($existingUser->email)->subject('Kode Verifikasi OTP Baru - PTW System');
                 });
             } catch (\Exception $e) {
-                Log::error("Gagal kirim ulang email ke " . $existingUser->email . ": " . $e->getMessage());
+                Log::error('OTP email resend failed', [
+                    'email' => $existingUser->email,
+                    'exception' => get_class($e),
+                    'message' => $e->getMessage(),
+                ]);
+
+                return back()
+                    ->withInput()
+                    ->withErrors(['email' => 'Gagal mengirim OTP ke email. Silakan coba lagi beberapa saat, atau hubungi admin.']);
             }
 
             $token = JWTAuth::fromUser($existingUser);
@@ -132,7 +140,17 @@ class RegisteredUserController extends Controller
                 $message->to($request->email)->subject('Kode Verifikasi OTP - PTW System');
             });
         } catch (\Exception $e) {
-            Log::error("Gagal mengirim email pendaftaran ke " . $request->email . ": " . $e->getMessage());
+            Log::error('OTP email send failed', [
+                'email' => $request->email,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
+
+            session()->forget('pending_registration');
+
+            return back()
+                ->withInput()
+                ->withErrors(['email' => 'Gagal mengirim OTP ke email. Pastikan email valid, lalu coba lagi.']);
         }
 
         // Redirect ke halaman verifikasi OTP (session berisi pending_registration)

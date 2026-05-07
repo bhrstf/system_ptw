@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\URL; // <-- Tambahkan baris ini ya Sayang
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,8 +20,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (config('app.env') !== 'local') {
-            URL::forceScheme('https'); // <-- Garis merah di sini harusnya hilang sekarang
+        if (! app()->environment('local')) {
+            URL::forceScheme('https');
+
+            $appUrl = (string) config('app.url');
+            if ($appUrl !== '') {
+                URL::forceRootUrl($appUrl);
+            }
         }
     }
 }
