@@ -93,7 +93,7 @@ class RegisteredUserController extends Controller
                 Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($existingUser) {
                     $message->to($existingUser->email)->subject('Kode Verifikasi OTP Baru - PTW System');
                 });
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('OTP email resend failed', [
                     'email' => $existingUser->email,
                     'exception' => get_class($e),
@@ -139,7 +139,7 @@ class RegisteredUserController extends Controller
             Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($request) {
                 $message->to($request->email)->subject('Kode Verifikasi OTP - PTW System');
             });
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('OTP email send failed', [
                 'email' => $request->email,
                 'exception' => get_class($e),
