@@ -92,8 +92,6 @@
             
             @php 
                 $userRole = trim(strtolower(Auth::user()->role)); 
-                // Cek apakah role adalah HSE atau Safety (case-insensitive)
-                $isHseSafety = in_array($userRole, ['hse', 'safety', 'hse/safety']);
             @endphp
 
             {{-- 1. Create PTW (Kontraktor/Maintenance) --}}
@@ -105,7 +103,7 @@
             @endif
 
             {{-- 2. Edit/Update PDF PTW (Khusus Master/Admin) --}}
-            @if(in_array($userRole, ['master', 'admin', 'superadmin']))
+            @if(in_array($userRole, ['master', 'admin']))
                 <a href="{{ route('superadmin.edit_ptw') }}"
                 class="nav-link {{ request()->routeIs('superadmin.edit_ptw') ? 'active' : '' }}">
                     <span class="nav-icon"><i class="fa-solid fa-file-pen"></i></span>
@@ -114,7 +112,7 @@
             @endif
 
             {{-- 3. Approval (HSE/Safety, Manager, Master) --}}
-            @if($isHseSafety || in_array($userRole, ['master', 'admin', 'superadmin']))
+            @if(in_array($userRole, ['hse', 'hse/safety']))
                 <a href="{{ route('approvals.index') }}" class="nav-link {{ request()->routeIs('approvals.*') ? 'active' : '' }}">
                     <span class="nav-icon"><i class="fa-solid fa-check-circle"></i></span>
                     <span class="nav-text">Approval Permit</span>
@@ -122,7 +120,7 @@
             @endif
 
             {{-- 4. Audit Permit (HSE/Safety, Master) --}}
-            @if($isHseSafety || in_array($userRole, ['master', 'admin', 'superadmin']))
+            @if(in_array($userRole, ['hse', 'hse/safety']))
                 <a href="{{ route('audits.index') }}" class="nav-link {{ request()->routeIs('audits.*') ? 'active' : '' }}">
                     <span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span>
                     <span class="nav-text">Audit Permit</span>
@@ -130,7 +128,7 @@
             @endif
 
             {{-- SEKSI KHUSUS MASTER / ADMIN --}}
-            @if(in_array($userRole, ['master', 'admin', 'superadmin']))
+            @if(in_array($userRole, ['master', 'admin']))
                 <div class="menu-title">Administrator</div>
                 <a href="{{ route('superadmin.users.index') }}" class="nav-link {{ request()->routeIs('superadmin.users.*') ? 'active' : '' }}">
                     <span class="nav-icon"><i class="fa-solid fa-users-gear"></i></span>
@@ -138,7 +136,7 @@
                 </a>
             @endif
             
-            @if($isHseSafety || in_array($userRole, ['kontraktor']))
+            @if(in_array($userRole, ['hse', 'hse/safety', 'kontraktor']))
             <div class="menu-title">Reports</div>
             <a href="{{ route('history.history') }}" class="nav-link {{ request()->routeIs('history.*') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
