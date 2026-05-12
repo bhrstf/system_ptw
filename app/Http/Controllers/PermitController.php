@@ -169,7 +169,7 @@ class PermitController extends Controller
             $request->validate([
                 'pic_lead' => 'required|string|max:255',
                 'pic_batamindo' => 'nullable|string|max:255',
-                'hazard_other' => 'nullable|string|max:255',
+                'hazards_other' => 'nullable|string|max:255',
                 'ppe_other' => 'nullable|array',
                 'man_power' => 'required|integer|min:1',
                 'ref_doc' => 'nullable|string|max:255',
@@ -182,8 +182,8 @@ class PermitController extends Controller
             $data['hazards'] = $request->input('hazards', []);
             $data['ppe'] = $request->input('ppe', []);
             $data['safety_checklists'] = $request->input('safety_checklists', []);
-            $data['hazard_other'] = $request->input('hazard_other');
-            $data['ppe_other'] = $request->input('ppe_other', []);
+            $data['hazards_other'] = $request->input('hazards_other') ?: null;
+            $data['ppe_other'] = $request->input('ppe_other', []) ?: null;
             $data['ref_doc'] = $request->input('ref_doc');
 
             $data['agreed_to_terms'] = $request->has('agreed_to_terms') ? 1 : 0;
@@ -276,7 +276,8 @@ class PermitController extends Controller
             $data['hazards'] = $request->input('hazards', []);
             $data['ppe'] = $request->input('ppe', []);
             $data['safety_checklists'] = $request->input('safety_checklists', []);
-            $data['ppe_other'] = $request->input('ppe_other', []);
+            $data['hazards_other'] = $request->input('hazards_other') ?: null;
+            $data['ppe_other'] = $request->input('ppe_other', []) ?: null;
 
             // 4. LOGIKA BOOLEAN (Checkbox Persetujuan)
             $data['agreed_to_terms'] = $request->has('agreed_to_terms') ? 1 : 0;

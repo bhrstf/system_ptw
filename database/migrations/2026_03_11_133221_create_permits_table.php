@@ -36,8 +36,8 @@ return new class extends Migration
             // --- 3. Sumber Bahaya & APD (JSON) ---
             $table->json('hazards');
             $table->json('ppe');
-            $table->json('hazards_other'); // Dokumen referensi terkait pekerjaan
-            $table->json('ppe_other');     // Dokumen referensi terkait pekerjaan
+            $table->json('hazards_other')->nullable(); // Dokumen referensi terkait pekerjaan
+            $table->json('ppe_other')->nullable();     // Dokumen referensi terkait pekerjaan
             $table->json('safety_checklists')->nullable(); 
 
             // --- 4. Informasi Lainnya & Perwakilan K3 ---

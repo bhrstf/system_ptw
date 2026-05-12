@@ -260,16 +260,23 @@
                 </div>
 
                 <div class="section-card">
-                    <div class="section-title mb-4 fw-bold" style="color: #003380; border-left: 4px solid #3b82f6; padding-left: 10px;">Documents Upload</div>
+                    <div class="section-title mb-1 fw-bold" style="color: #003380; border-left: 4px solid #3b82f6; padding-left: 10px;">
+                        Documents Upload
+                    </div>
+                    <div class="mb-4" style="padding-left: 14px;">
+                        <small class="text-muted italic">
+                            * Seluruh dokumen wajib diunggah dalam format <strong>PDF</strong>.
+                        </small>
+                    </div>
                     <div class="row g-3">
-                        <div class="col-md-6"><label class="small fw-bold">JSA File</label><input type="file" name="jsa_file" class="form-control" required></div>
-                        <div class="col-md-6"><label class="small fw-bold">HIRADC File</label><input type="file" name="hiradc_file" class="form-control" required></div>
-                        <div class="col-md-6"><label class="small fw-bold">Daftar Pekerja</label><input type="file" name="worker_list_file" class="form-control" required></div>
-                        <div class="col-md-6"><label class="small fw-bold">Sertifikat Kompetensi</label><input type="file" name="competency_cert_file" class="form-control" required></div>
-                        <div class="col-md-6"><label class="small fw-bold">Prosedur Kerja</label><input type="file" name="work_procedure_file" class="form-control" required></div>
+                        <div class="col-md-6"><label class="small fw-bold">JSA File</label><input type="file" name="jsa_file" class="form-control" accept=".pdf" required></div>
+                        <div class="col-md-6"><label class="small fw-bold">HIRADC File</label><input type="file" name="hiradc_file" class="form-control" accept=".pdf" required></div>
+                        <div class="col-md-6"><label class="small fw-bold">Daftar Pekerja</label><input type="file" name="worker_list_file" class="form-control" accept=".pdf" required></div>
+                        <div class="col-md-6"><label class="small fw-bold">Sertifikat Kompetensi</label><input type="file" name="competency_cert_file" class="form-control" accept=".pdf" required></div>
+                        <div class="col-md-6"><label class="small fw-bold">Prosedur Kerja</label><input type="file" name="work_procedure_file" class="form-control" accept=".pdf" required></div>
                         <div class="col-md-6 mb-3">
                             <label class="small fw-bold">Sertifikat Alat, Bahan, dan Inspeksi Peralatan Listrik</label>
-                            <input type="file" name="tool_cert_file" class="form-control" required>
+                            <input type="file" name="tool_cert_file" class="form-control" accept=".pdf" required>
                             <div class="form-text text-muted" style="font-size: 12px;">
                                 <i class="fa-solid fa-circle-info me-1"></i>
                                 Contoh dokumen: SLO, MSDS, atau hasil Inspeksi Mesin Las.
