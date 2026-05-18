@@ -11,12 +11,18 @@ class NewAccountNotification extends Notification
 
     private $pesan;
     private $detailPesan;
+    private $title;
 
-    // Supaya dinamis, bisa dipake buat ngabarin akun baru ATAU ptw yg udah di-approve
-    public function __construct($pesan, $detailPesan)
+    /**
+     * @param string $pesan Judul ringkas (misal: Registrasi Berhasil)
+     * @param string $detailPesan Penjelasan lengkap
+     * @param string|null $title Kategori notifikasi (opsional)
+     */
+    public function __construct($pesan, $detailPesan, $title = 'Informasi Sistem')
     {
         $this->pesan = $pesan;
         $this->detailPesan = $detailPesan;
+        $this->title = $title;
     }
 
     public function via($notifiable)
@@ -27,8 +33,11 @@ class NewAccountNotification extends Notification
     public function toDatabase($notifiable)
     {
         return [
-            'message' => $this->pesan,
+            'title' => $this->title,
+            'message' => "<strong>{$this->pesan}</strong>", // Membuat pesan utama lebih menonjol
             'detail' => $this->detailPesan,
+            'icon' => 'fa-user-shield text-navy', // Ikon default yang profesional
+            'action_url' => url('/profile'), // Contoh link tujuan yang berguna bagi user
         ];
     }
 }

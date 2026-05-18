@@ -85,7 +85,8 @@ class PermitController extends Controller
     public function managementUpdate()
     {
         $permits = Permit::whereIn('status', [Permit::STATUS_ACTIVE, Permit::STATUS_APPROVED])->latest()->get();
-        return view('superadmin.edit_ptw_form', compact('permits'));
+        $permit = null; // Untuk tampilan list, bukan form edit individual
+        return view('superadmin.edit_ptw_form', compact('permits', 'permit'));
     }
 
     /**

@@ -161,103 +161,176 @@
 
             {{-- 2. Work Details --}}
             <div class="section-card">
-                <div class="section-title">Work Details & Personnel</div>
-                <div class="row g-4">
-                    @php
-                        $from = $permit->valid_from instanceof \Carbon\Carbon ? $permit->valid_from : \Carbon\Carbon::parse($permit->valid_from);
-                        $until = $permit->valid_until instanceof \Carbon\Carbon ? $permit->valid_until : \Carbon\Carbon::parse($permit->valid_until);
-                    @endphp
-                    <div class="col-md-3"><label class="small fw-bold text-muted mb-2">Start Date</label><input type="datetime-local" name="valid_from" class="form-control shadow-sm" value="{{ $from->format('Y-m-d\TH:i') }}" required></div>
-                    <div class="col-md-3"><label class="small fw-bold text-muted mb-2">Until Date</label><input type="datetime-local" name="valid_until" class="form-control shadow-sm" value="{{ $until->format('Y-m-d\TH:i') }}" required></div>
-                    <div class="col-md-6"><label class="small fw-bold text-muted mb-2">PIC Lead</label><input type="text" name="pic_lead" class="form-control shadow-sm" value="{{ $permit->pic_lead }}" required></div>
-                    
-                    <div class="col-md-4"><label class="small fw-bold text-muted mb-2">Applicant Name</label><input type="text" name="applicant_name" class="form-control shadow-sm" value="{{ $permit->applicant_name }}" required></div>
-                    <div class="col-md-4"><label class="small fw-bold text-muted mb-2">Company</label><input type="text" name="company" class="form-control shadow-sm" value="{{ $permit->company }}" required></div>
-                    <div class="col-md-4"><label class="small fw-bold text-muted mb-2">Email</label><input type="email" name="email" class="form-control shadow-sm" value="{{ $permit->email }}" required></div>
-                    
-                    <div class="col-md-4"><label class="small fw-bold text-muted mb-2">Phone Number</label><input type="text" name="phone" class="form-control shadow-sm" value="{{ $permit->phone }}" required></div>
-                    <div class="col-md-8"><label class="small fw-bold text-muted mb-2">Work Location</label><input type="text" name="location" class="form-control shadow-sm" value="{{ $permit->location }}" required></div>
-                    <div class="col-md-8"><label class="small fw-bold text-muted mb-2">General Work Scope</label><input type="text" name="work_scope_general" class="form-control shadow-sm" value="{{ $permit->work_scope_general }}" required></div>
-                    <div class="col-md-4"><label class="small fw-bold text-muted mb-2">Referensi Dokumen</label><input type="text" name="ref_doc" class="form-control shadow-sm" value="{{ $permit->ref_doc }}"></div>
+                    <div class="section-title mb-4 fw-bold" style="color: #003380; border-left: 4px solid #f59e0b; padding-left: 10px;">Work Details & Personnel</div>
+                    <div class="row g-3">
+                        <div class="col-md-3"><label class="small fw-bold text-muted">Start Date</label><input type="datetime-local" name="valid_from" class="form-control" value="{{ $permit->valid_from->format('Y-m-d\TH:i') }}" required></div>
+                        <div class="col-md-3"><label class="small fw-bold text-muted">Until Date</label><input type="datetime-local" name="valid_until" class="form-control" value="{{ $permit->valid_until->format('Y-m-d\TH:i') }}" required></div>
+                        <div class="col-md-6"><label class="small fw-bold text-muted">PIC Lead</label><input type="text" name="pic_lead" class="form-control" value="{{ $permit->pic_lead }}" required></div>
+                        <div class="col-md-6"><label class="small fw-bold text-muted">PIC Batamindo</label><input type="text" name="pic_batamindo" class="form-control" value="{{ $permit->pic_batamindo }}" required></div>
+                        
+                        <div class="col-md-4"><label class="small fw-bold text-muted">Applicant Name</label><input type="text" name="applicant_name" class="form-control" value="{{ $permit->applicant_name }}" required></div>
+                        <div class="col-md-4"><label class="small fw-bold text-muted">Company</label><input type="text" name="company" class="form-control" value="{{ $permit->company }}" required></div>
+                        <div class="col-md-4"><label class="small fw-bold text-muted">Email</label><input type="email" name="email" class="form-control" value="{{ $permit->email }}" required></div>
+                        
+                        <div class="col-md-4"><label class="small fw-bold text-muted">Phone Number</label><input type="text" name="phone" class="form-control" value="{{ $permit->phone }}" required></div>
+                        <div class="col-md-4"><label class="small fw-bold text-muted">Man Power</label><input type="number" name="man_power" class="form-control" value="{{ $permit->man_power }}" required></div>
+                        <div class="col-md-8"><label class="small fw-bold text-muted">Work Location</label><input type="text" name="location" class="form-control" value="{{ $permit->location }}" required></div>
+                        <div class="col-md-8"><label class="small fw-bold text-muted">General Work Scope</label><input type="text" name="work_scope_general" class="form-control" value="{{ $permit->work_scope_general }}" required></div>
+                        <div class="col-md-4"><label class="small fw-bold text-muted">Referensi Dokumen</label><input type="text" name="ref_doc" class="form-control" value="{{ $permit->ref_doc }}"></div>
 
-                    <div class="col-md-12 mt-3">
-                        <label class="small fw-bold text-muted mb-2">Tools / Equipment Used</label>
-                        <div id="editor-tools" style="height:150px; border-radius:12px;">{!! $permit->tools_used !!}</div>
-                        <input type="hidden" name="tools_used" id="tools_used">
-                    </div>
-
-                    <div class="col-md-12 mt-4">
-                        <label class="small fw-bold text-muted mb-2">Detailed Work Scope</label>
-                        <div id="editor-scope" style="height:150px; border-radius:12px;">{!! $permit->work_scope_detail !!}</div>
-                        <input type="hidden" name="work_scope_detail" id="work_scope_detail">
-                    </div>
-                </div>
-            </div>
-
-            {{-- 3. Risk Mitigation & Checklist --}}
-            <div class="section-card">
-                <div class="section-title">Risk Mitigation & Checklist</div>
-                <div id="checklist-master-wrapper">
-                    @php $curChecklist = is_array($permit->safety_checklists) ? $permit->safety_checklists : json_decode($permit->safety_checklists, true) ?? []; @endphp
-                    @foreach(\App\Models\Permit::getMasterChecklist() as $ptwType => $categories)
-                        @php 
-                            $theme = \App\Models\Permit::getPermitTheme($ptwType); 
-                            $isSectionActive = in_array($ptwType, $currentTypes);
-                        @endphp
-                        <div class="checklist-section {{ $isSectionActive ? '' : 'd-none' }} mb-4" id="section-{{ Str::slug($ptwType) }}">
-                            <div class="p-3 mb-4 rounded-4 text-center fw-bold shadow-sm" style="background-color: {{ $theme['bg'] }} !important; color: {{ $theme['text'] }} !important; font-size: 1.1rem;">
-                                <i class="fas fa-clipboard-check me-2"></i> {{ $theme['label'] }} Checklist
-                            </div>
-                            @foreach($categories as $subJudul => $questions)
-                                <div class="fw-bold mb-3 mt-4 text-uppercase small ls-wide" style="color: {{ $theme['bg'] }};">{{ $subJudul }}</div>
-                                <div class="row g-2">
-                                    @foreach($questions as $q)
-                                    <div class="col-md-6 mb-2">
-                                        <div class="form-check p-2 border rounded-3 hover-bg-light transition-all" style="padding-left: 2.5rem !important;">
-                                            <input type="checkbox" name="safety_checklists[]" value="{{ $q }}" class="form-check-input" {{ in_array($q, $curChecklist) ? 'checked' : '' }}>
-                                            <label class="form-check-label small text-muted fw-medium">{{ $q }}</label>
-                                        </div>
-                                    </div>
-                                    @endforeach
-                                </div>
-                            @endforeach
+                        <div class="col-md-12 mt-3">
+                            <label class="small fw-bold text-muted">Tools / Equipment Used</label>
+                            <div id="editor-tools" style="height:120px;background:#fff; border-radius: 0 0 10px 10px;">{!! $permit->tools_used !!}</div>
+                            <input type="hidden" name="tools_used" id="tools_used">
                         </div>
-                    @endforeach
+
+                        <div class="col-md-12 mt-3">
+                            <label class="small fw-bold text-muted">Detailed Work Scope</label>
+                            <div id="editor-scope" style="height:120px;background:#fff; border-radius: 0 0 10px 10px;">{!! $permit->work_scope_detail !!}</div>
+                            <input type="hidden" name="work_scope_detail" id="work_scope_detail">
+                        </div>
+                    </div>
                 </div>
-            </div>
+
+            {{-- Section 3: Risk Mitigation --}}
+                <div class="section-card">
+                    <div class="section-title mb-4 fw-bold" style="color: #003380; border-left: 4px solid #f59e0b; padding-left: 10px;">Risk Mitigation</div>
+                    
+                    <label class="fw-bold mb-3">Hazards Identification</label>
+                    <div class="row mb-4">
+                        @php $curHazards = $permit->hazards ?? []; @endphp
+                        @foreach(\App\Models\Permit::getHazardList() as $hazard)
+                        <div class="col-md-4 col-6 mb-2 hazard-container">
+                            <div class="form-check">
+                                <input type="checkbox" name="hazards[]" value="{{ $hazard }}" class="form-check-input risk-checkbox" {{ in_array($hazard, $curHazards) ? 'checked' : '' }}>
+                                <label class="form-check-label small">{{ $hazard }}</label>
+                            </div>
+                            @if(str_contains(strtolower($hazard), 'lainnya'))
+                            <div class="other-input-container {{ $permit->hazards_other ? '' : 'd-none' }}">
+                                <input type="text" name="hazards_other" class="form-control form-control-sm" value="{{ $permit->hazards_other }}" placeholder="Sebutkan lainnya...">
+                            </div>
+                            @endif
+                        </div>
+                        @endforeach
+                    </div>
+
+                    <label class="fw-bold mb-3 border-top pt-4">PPE (Personal Protective Equipment)</label>
+                    <div class="row mb-4">
+                        @php $curPpe = $permit->ppe ?? []; @endphp
+                        @foreach(\App\Models\Permit::getPpeList() as $category=>$items)
+                        <div class="col-12 fw-bold small text-primary mt-2 mb-2">{{ $category }}</div>
+                        @foreach($items as $ppe)
+                        <div class="col-md-4 col-6 mb-1 ppe-container">
+                            <div class="form-check">
+                                <input type="checkbox" name="ppe[]" value="{{ $ppe }}" class="form-check-input risk-checkbox" {{ in_array($ppe, $curPpe) ? 'checked' : '' }}>
+                                <label class="form-check-label small">{{ $ppe }}</label>
+                            </div>
+                            @if(str_contains(strtolower($ppe), 'lainnya'))
+                            @php $catSlug = Str::slug($category); @endphp
+                            <div class="other-input-container {{ isset($permit->ppe_other[$catSlug]) ? '' : 'd-none' }}">
+                                <input type="text" name="ppe_other[{{ $catSlug }}]" class="form-control form-control-sm" value="{{ $permit->ppe_other[$catSlug] ?? '' }}" placeholder="Sebutkan lainnya...">
+                            </div>
+                            @endif
+                        </div>
+                        @endforeach
+                        @endforeach
+                    </div>
+
+                    <div id="checklist-master-wrapper">
+                        @php $curChecklist = $permit->safety_checklists ?? []; @endphp
+                        @foreach(\App\Models\Permit::getMasterChecklist() as $ptwType => $categories)
+                            @php 
+                                $theme = \App\Models\Permit::getPermitTheme($ptwType); 
+                                $isSectionActive = in_array($ptwType, $currentTypes);
+                            @endphp
+                            <div class="checklist-section {{ $isSectionActive ? '' : 'd-none' }} mb-4" id="section-{{ Str::slug($ptwType) }}">
+                                <div class="p-3 mb-3 rounded-3 text-center fw-bold shadow-sm" style="background-color: {{ $theme['bg'] }} !important; color: {{ $theme['text'] }} !important;">
+                                    Permit to Work - {{ $theme['label'] }} Checklist
+                                </div>
+                                @foreach($categories as $subJudul => $questions)
+                                    <div class="sub-judul-checklist" style="color: {{ $theme['bg'] }}; filter: brightness(0.6);">{{ $subJudul }}</div>
+                                    <div class="row">
+                                        @foreach($questions as $q)
+                                        <div class="col-md-6 mb-2 checklist-container">
+                                            <div class="form-check">
+                                                <input type="checkbox" name="safety_checklists[]" value="{{ $q }}" class="form-check-input risk-checkbox" {{ in_array($q, $curChecklist) ? 'checked' : '' }}>
+                                                <label class="form-check-label small text-muted">{{ $q }}</label>
+                                            </div>
+                                            @if(str_contains(strtolower($q), 'lainnya'))
+                                                @php $chkSlug = Str::slug($subJudul); @endphp
+                                                <div class="other-input-container mt-1 {{ isset($permit->safety_checklists_other[$chkSlug]) ? '' : 'd-none' }}">
+                                                    <input type="text" name="safety_checklists_other[{{ $chkSlug }}]" class="form-control form-control-sm" value="{{ $permit->safety_checklists_other[$chkSlug] ?? '' }}" placeholder="Sebutkan lainnya...">
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @endforeach
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
 
             {{-- 4. Documents Management --}}
             <div class="section-card">
-                <div class="section-title">Documents Management</div>
-                <div class="row g-4">
-                    @php
-                    $fileLabels = [
-                        'jsa_file' => 'JSA File', 
-                        'hiradc_file' => 'HIRADC File', 
-                        'worker_list_file' => 'Daftar Pekerja', 
-                        'competency_cert_file' => 'Sertifikat Kompetensi',
-                        'work_procedure_file' => 'Prosedur Kerja',
-                        'tool_cert_file' => 'Sertifikat Alat (Opsional)'
-                    ];
-                    @endphp
-                    @foreach($fileLabels as $field => $label)
-                    <div class="col-md-6">
-                        <div class="p-3 border rounded-4 bg-light bg-opacity-50">
-                            <label class="small fw-bold text-muted mb-2">{{ $label }}</label>
-                            <input type="file" name="{{ $field }}" class="form-control shadow-none">
-                            @if($permit->$field)
-                                <div class="mt-2 d-flex align-items-center">
-                                    <span class="badge bg-white text-primary border shadow-sm">
-                                        <i class="fas fa-file-pdf me-2 text-danger"></i>
-                                        <a href="{{ Storage::url($permit->$field) }}" target="_blank" class="text-decoration-none fw-bold">Review Current Document</a>
-                                    </span>
-                                </div>
+                    <div class="section-title mb-2 fw-bold" style="color: #003380; border-left: 4px solid #f59e0b; padding-left: 10px;">Documents Update</div>
+                    <div class="text-muted small mb-3">* Seluruh dokumen wajib diunggah dalam format <strong>PDF</strong>.</div>
+                    
+                    <div class="alert alert-info py-2 small mb-4" style="background-color: #d1f4ff; border: 1px solid #bce8f1; color: #31708f;">
+                        Biarkan kosong jika tidak ingin mengganti dokumen lama.
+                    </div>
+                    
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">JSA File</label>
+                            <input type="file" name="jsa_file" class="form-control" accept=".pdf">
+                            @if($permit->jsa_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->jsa_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">HIRADC File</label>
+                            <input type="file" name="hiradc_file" class="form-control" accept=".pdf">
+                            @if($permit->hiradc_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->hiradc_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">Daftar Pekerja</label>
+                            <input type="file" name="worker_list_file" class="form-control" accept=".pdf">
+                            @if($permit->worker_list_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->worker_list_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">Sertifikat Kompetensi</label>
+                            <input type="file" name="competency_cert_file" class="form-control" accept=".pdf">
+                            @if($permit->competency_cert_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->competency_cert_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">Prosedur Kerja</label>
+                            <input type="file" name="work_procedure_file" class="form-control" accept=".pdf">
+                            @if($permit->work_procedure_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->work_procedure_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">Sertifikat Alat, Bahan, dan Inspeksi Peralatan Listrik</label>
+                            <input type="file" name="tool_cert_file" class="form-control" accept=".pdf">
+                            <div class="text-muted mt-2" style="font-size: 0.75rem;"><i class="fas fa-info-circle me-1"></i>Contoh dokumen: SLO, MSDS, atau hasil Inspeksi Mesin Las.</div>
+                            @if($permit->tool_cert_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->tool_cert_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
                             @endif
                         </div>
                     </div>
-                    @endforeach
                 </div>
-            </div>
 
             {{-- 5. Verification Signatures --}}
             <div class="section-card">

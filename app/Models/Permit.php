@@ -168,96 +168,145 @@ class Permit extends Model
     {
         return [
             'Hot Work' => [
-                'General Preparation' => [
+                'Pencegahan minimum harus dilengkapi dan diverifikasi sesuai dengan lingkup kerja di atas. Kosongkan kotak jika tidak diperlukan.' => [
                     'Gas Mapping Plan disetujui oleh Facility Owner',
                     'Pengecekan gas awal dilakukan dan hasilnya didokumentasikan',
                     'Pengujian gas lanjutan dilakukan berdasarkan hasil pengujian gas awal',
-                    'Parit dalam radius 35ft (10m) dari open flame hot work harus ditutup dengan cara plugging',
-                    'Material yang mudah terbakar dalam radius 35ft (10m) sudah ditutup cover/shield tahan api',
-                    'Peralatan pemadam kebakaran tersedia di lokasi kerja (APAR, dsb)',
-                    'Peralatan pengelasan/listrik yang digunakan harus digrounding/dibumikan',
-                    'Media containment (fire blanket, welding screen) digunakan untuk mengontrol percikan',
-                    'Fire Watch telah ditunjuk dan stand by selama 30 menit setelah pekerjaan selesai',
+                    'Parit dalam radius 35ft (10m) dari open flame hot work harus ditutup dengan cara plugging dan diisi air, atau cara lain yang ekuivalen',
+                    'Material yang mudah terbakar dalam radius 35ft (10m) yang tidak bisa dipindahkan harus ditutup cover/shield tahan api, atau harus tetap dalam keadaan basah selama open flame hot work berlangsung',
+                    'Peralatan pemadam kebakaran tersedia di lokasi kerja (seperti APAR, pelindung percikan api, sekop, persediaan air yang cukup, dsb)',
+                    'Peralatan pengelasan dan peralatan listrik lain yang digunakan harus digrounding/dibumikan',
+                    'Media containment (seperti fire blanket, welding screen) digunakan untuk mengontrol percikan dari api terbuka (open flame)',
+                    'Fire Watch tanpa tugas lain telah ditunjuk dan akan tetap di lokasi selama 30 menit setelah pekerjaan open flame hot work selesai',
                     'Area Hot Work dibarikade dan/atau dipasangkan tanda peringatan',
                     'Isi sebelumnya dari tangki / peralatan telah diidentifikasi'
+                ],
+                'Non-Critical Lifting & Rigging (isi bagian ini jika dalam pekerjaan hot work diperlukan proses pengangkatan)' => [
+                    'Perlukan proses pengangkatan) Sertifikasi personil dan peralatan yang dibutuhkan diverifikasi dan valid',
+                    'Berat beban pada rentang batas aman peralatan bekerja (SWL)',
+                    'JSA berisi langkah-langkah pengangkatan',
+                    'JSA didiskusikan dengan pihak terkait dan pekerja yang terlibat sebelum pekerjaan dimulai'
                 ]
             ],
             'Electrical' => [
-                'Isolation Procedures' => [
-                    'Diagram / rencana isolasi disediakan untuk menjelaskan seluruh titik isolasi',
-                    'Prosedur pengisolasian peralatan digunakan secara berurutan',
-                    'Perangkat isolasi (blind, spade, skillet, dll.) sesuai untuk sumber energi',
-                    'Titik isolasi dikunci untuk mencegah pelepasan energi tidak diinginkan',
+                'Pencegahan minimum harus dilengkapi dan diverifikasi sesuai dengan lingkup kerja di atas. Kosongkan kotak jika tidak diperlukan. *' => [
+                    'Diagram / rencana isolasi disediakan untuk menjelaskan seluruh titik yang akan diisolasi.',
+                    'Prosedur pengisolasian peralatan digunakan untuk mengisolasi seluruh titik isolasi peralatan secara berurutan',
+                    'Perangkat isolasi (seperti blind, spade, skillet, dll.) yang digunakan sesuai untuk sumber energi berbahaya.',
+                    'Titik isolasi yang diidentifikasi dikunci untuk mencegah pelepasan energi berbahaya yang tidak diinginkan.',
                     'Keadaan zero energy tercapai atau sisa energi berbahaya dilepaskan',
-                    'Setiap pekerja dilindungi oleh masing-masing Individual Lock',
-                    'Pengujian gas dilakukan ketika membuka peralatan/bejana berisi material berbahaya',
-                    'Persetujuan Manager dibutuhkan jika isolasi memerlukan Positive Physical Isolation (PPI)'
-                ]
+                    'Setiap pekerja yang berkepentingan dengan sistem yang diisolasi terlindungi oleh masing-masing Individual Lock',
+                    'Pengujian gas dilakukan ketika membuka peralatan, pipa, bejana (vessel), dsb. yang berisi material berbahaya (beracun atau mudah terbakar)',
+                    'Persetujuan Manager dibutuhkan, jika isolasi memerlukan Positive Physical Isolation (PPI) tetapi PPI tidak dapat dilakukan'
+                ],
+                'Energy berbahaya yang akan diisolasi (cek semua yang diterapkan): *' => [
+                    'Mekanikal',
+                    'Tekanan',
+                    'Kimia',
+                    'Radiasi',
+                    'Gravitasi',
+                    'Elektrikal',
+                    'Temperature',
+                    'Biologi',
+                    'Suara',
+                    'Gerak'
+                ],
             ],
             'Excavation' => [
-                'General Preparation' => [
-                    'Area diklasifikasikan ruang terbatas? (jika ya, Confine Space Permit diperlukan)',
+                'Pencegahan minimum harus dilengkapi dan diverifikasi sesuai dengan lingkup kerja di atas. Kosongkan kotak jika tidak diperlukan.' => [
+                    'Area tersebut diklasifikasikan dalam ruang terbatas? (jika ya, Confine Space Permit di perlukan)',
                     'Rambu dan barikade yang memadai telah disediakan',
                     'Gambar untuk fasilitas bawah tanah telah diperiksa',
-                    'Banksman disediakan untuk mengontrol penggunaan peralatan bergerak',
+                    'Banksman disediakan untuk mengontrol penggunaan peralatan bergerak untuk penggalian',
                     'Shoring diperlukan untuk melindungi keruntuhan area galian',
                     'Tanah dan material dijauhkan minimal 1 meter dari tepi galian',
                     'Akses jalan cukup dan dipastikan tidak ada permukaan licin',
-                    'Pembuatan parit/penggalian di jalan umum (diperlukan blok jalan)',
+                    'Pembuatan parit atau penggalian berada di jalan umum (diperlukan blok jalan)',
                     'Sistem dewatering diperlukan'
+                ],
+                'Jalur tersebut telah bebas dari' => [
+                    'Kabel listrik',
+                    'Kabel instrumen',
+                    'Pipa air',
+                    'Kabel telepon',
+                    'Gorong-gorong'
                 ]
             ],
             'Working at Height' => [
-                'Area & Ground Conditions' => [
+                'Pencegahan minimum harus dilengkapi dan diverifikasi sesuai dengan lingkup kerja di atas. Kosongkan kotak jika tidak diperlukan.' => [
                     'Sebagian pekerjaan dapat dikerjakan di permukaan tanah',
                     'Jarak ketinggian sudah diketahui',
-                    'Area kerja terbebas dari bahaya listrik dan diberi pengaman/isolasi',
-                    'Area kerja berada di permukaan yang landai',
-                    'Area kerja becek/basah/berlumpur telah dibersihkan hingga aman',
+                    'Area kerja sudah terbebas dari bahaya listrik dan diberi pengaman atau isolasi',
+                    'Area kerja berada dipermukaan yang landai',
+                    'Area kerja berada dipermukaan yang becek / basah / berlumpur telah bersihkan hingga area kerja telah aman',
                     'Rambu Keselamatan sudah terpasang',
                     'Terdapat Hard Barricade di pembatas area kerja'
+                ],
+                'Working at Height (Bagian 1)' => [
+                    'Bekerja di Permanent Platform',
+                    'Mendirikan / Memodifikasi / Membongkar scaffolding',
+                    'Bekerja pada scaffolding',
+                    'Bekerja di Mobile Elevating Working Platform (MEWP)',
+                    'Lainnya'
                 ]
             ],
             'Lifting Operation' => [
-                'Operational Safety' => [
-                    'Operator crane memiliki Sertifikasi yang valid',
+                'Pencegahan minimum harus dilengkapi dan diverifikasi sesuai dengan lingkup kerja di atas. Kosongkan kotak jika tidak diperlukan.' => [
+                    'Operator crane memiliki kompetensi yang dibuktikan dengan Sertifikasi yang valid',
                     'Rute perjalanan crane sudah ditentukan dan jelas',
-                    'Area pengoperasian crane ditentukan dan pondasi dudukan kokoh',
+                    'Area pengoperasian crane ditentukan dan pondasi dudukan crane kokoh',
                     'Fitur keselamatan, tanda peringatan dan penghalang disiapkan & dipasang',
                     'Area duduk Crane menjaga jarak aman dari penggalian',
-                    'Crane/kendaraan pengangkat disertifikasi & diperiksa dengan kode warna',
-                    'Petugas pemberi sinyal (rigger) yang kompeten telah ditunjuk',
-                    'Bahaya SIMOPS (pekerjaan bersinggungan) diperhitungkan',
-                    'Bahaya dari pekerjaan yang berdekatan dipertimbangkan'
+                    'Crane atau kendaraan pengangkat lainnya yang disertifikasi, diperiksa dengan kode warna',
+                    'Petugas pemberi sinyal / isyarat yang kompeten dalam posisinya ditunjuk & ditempatkan',
+                    'Bahaya dari pekerjaan yang bersinggungan (SIMOPS) diperhitungkan',
+                    'Bahaya dari pekerjaan yang berdekatan juga dipertimbangkan'
+                ],
+                'Critical Lifting & Rigging (Bagian 1)' => [
+                    'Blind Lift',
+                    'Complicated Lift',
+                    'Personnel Man Basket Lift',
+                    'Bekerja di Mobile Elevating Working Platform (MEWP)',
+                    'Complex Lift',
+                    'Heavy Lift',
+                    'Critical Lift',
+                    'Lainnya'
                 ]
             ],
-            'Confined Space' => [
-                'Entry Requirements' => [
+            'Confined Spac' => [
+                'Pencegahan minimum harus dilengkapi dan diverifikasi sesuai dengan lingkup kerja di atas. Kosongkan kotak jika tidak diperlukan.' => [
                     'Semua koneksi ke ruang terbatas telah diisolasi',
-                    'Pekerja memiliki kompetensi (Sertifikat Confined Space)',
-                    'Alat pernafasan sudah diperiksa dan dinyatakan layak pakai',
-                    'Memiliki pekerja kompetensi pengujian gas (AGT)',
-                    'Ruang terbatas memiliki tingkat oksigen yang cukup',
-                    'Ruang terbatas aman dari sumber bahaya luar',
-                    'Melakukan Uji gas, flushing, atau blowing sebelum masuk',
-                    'Lampu, akses dan jalan keluar diberikan rambu & barikade cukup',
-                    'Tersedia pekerja standby (Hole Watch) sebagai pengawas',
+                    'Pekerja memiliki kompetensi memasuki ruang terbatas dengan dibuktikan dengan memiliki sertifikasi',
+                    'Alat-alat pernafasan sudah diperiksa dan dinyatakan aman untuk layak pakai',
+                    'Memiliki pekerja yang memiliki kompetensi pengujian gas (AGT)',
+                    'Ruang terbatas memiliki tingkat oksigen yang cukup untuk bekerja',
+                    'Ruang terbatas aman dari sumber bahaya dan pekerjaan lainnya yang tidak ada hubungan pekerjaan terkait.',
+                    'Melakukan Uji gas sebelum memasuki ruang terbatas, dan boleh memasuki setelah melakukan flushing,blowing,dll untuk membersihkan gas berbahaya diruang terbatas.',
+                    'Lampu, akses dan jalan keluar sudah diberikan rambu peringatan dan dibarikade yang cukup',
+                    'Tersedia pekerja yang standby di akses ruang terbatas sebagai pengawas',
                     'Penerangan ruang terbatas sudah tersertifikasi Gasproof',
-                    'Pekerja sudah menjalani tes kesehatan medis',
-                    'Terdapat Tim Rescue dan rencana keadaan darurat'
+                    'Pekerja sudah menjalani tes kesehatan medis untuk ruang terbatas',
+                    'Terdapat Tim Rescue ruang terbatas dan memiliki rencana untuk keadaan darurat'
                 ]
             ],
             'Cold Work' => [
-                'Bypassing Critical Protection' => [
-                    'Critical Protection diidentifikasi dan diverifikasi Executive Terkait',
-                    'Bypass jangka pendek (<72 jam)',
-                    'Bypass jangka panjang (>72 jam), MOC diperlukan',
-                    'Rencana durasi Bypass (Jam)'
+                'Pencegahan minimum harus dilengkapi dan diverifikasi sesuai dengan lingkup kerja di atas. Kosongkan kotak jika tidak diperlukan.' => [
+                        'Critical Protection diidentifikasi dan diverifikasi Executive Terkait',
+                        'Bypass jangka pendek (<72 jam)',
+                        'Bypass jangka panjang (>72 jam), MOC diperlukan',
+                        'Rencana durasi Bypass (Jam)'
+                    ],
+                'Manual Excavation, dengan kedalaman < 4ft (1.2m) ' => [
+                    'Peralatan bawah tanah (contoh: pipa, kabel instrumen/listrik/fiber optic, saluran, dll.) diverifikasi dan ditandai',
+                    'Pasang barikade untuk mencegah akses yang tidak diizinkan'
                 ],
-                'General Safety' => [
-                    'Peralatan bawah tanah diverifikasi dan ditandai',
-                    'Pasang barikade untuk mencegah akses tidak diizinkan',
-                    'Sertifikasi personil dan peralatan diverifikasi dan valid',
+                'Non-Critical Lifting & Rigging' => [
+                    'Sertifikasi personil dan peralatan yang dibutuhkan diverifikasi dan valid',
+                    'Berat beban pada rentang batas aman peralatan bekerja (SWL)',
+                    'JSA berisi langkah-langkah melakukan pengangkatan',
+                    'JSA didiskusikan dengan pihak terkait dan pekerja yang terlibat sebelum pekerjaan dimulai'
+                ],
+                'Simple Isolation (jika lingkup kerja di atas membutuhkan simple isolation) ' => [
                     'Titik isolasi telah diidentifikasi dan dikunci / ditag',
                     'Keadaan zero energy telah tercapai'
                 ]

@@ -20,15 +20,49 @@ class PtwStatusNotification extends Notification
 
     public function via($notifiable)
     {
-        return ['database']; // Ngirim lewat database
+        return ['database'];
     }
 
     public function toDatabase($notifiable)
     {
-        // Format ini yang ditangkap oleh $notification->data['message'] di Blade kamu
+        // Menentukan judul dan pesan berdasarkan status secara dinamis
+        $title = 'Pembaruan Status Permit';
+        $message = '';
+
+        switch ($this->status) {
+            case 'approved':
+                $title = 'Permit Disetujui (Office)';
+                $message = "Permit <strong>{$this->ptw->ptw_number}</strong> telah disetujui oleh HSE Office dan menunggu validasi lapangan.";
+                break;
+            case 'active':
+                $title = 'Permit Telah Aktif';
+                $message = "Validasi lapangan selesai. Permit <strong>{$this->ptw->ptw_number}</strong> kini berstatus aktif.";
+                break;
+            case 'rejected':
+                $title = 'Permit Ditolak';
+                $message = "Permit <strong>{$this->ptw->ptw_number}</strong> telah ditolak oleh tim HSE. Silakan cek detail revisi.";
+                break;
+            default:
+                $message = "Status permit <strong>{$this->ptw->ptw_number}</strong> telah diperbarui menjadi " . strtoupper($this->status) . ".";
+                break;
+        }
+
         return [
-            'message' => 'Status PTW Diperbarui',
-            'detail' => 'Pengajuan PTW dengan nomor <strong>' . $this->ptw->nomor_ptw . '</strong> telah diubah statusnya menjadi: <strong>' . strtoupper($this->status) . '</strong>.',
+            'title' => $title, // Tambahkan title supaya di UI bisa dibedakan
+            'message' => $message,
+            'ptw_id' => $this->ptw->id,
+            'status' => $this->status,
+            'icon' => $this->getIcon(), // Tambahkan helper icon kalau mau lebih pro
         ];
+    }
+
+    private function getIcon()
+    {
+        return match($this->status) {
+            'approved' => 'fa-check-circle text-success',
+            'active' => 'fa-running text-info',
+            'rejected' => 'fa-times-circle text-danger',
+            default => 'fa-info-circle text-primary',
+        };
     }
 }

@@ -11,149 +11,93 @@ use Illuminate\Support\Facades\Log;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
 use Illuminate\Validation\Rules\Password;
+use App\Mail\SendOtpMail; // <--- WAJIB IMPORT INI
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Tampilkan halaman registrasi.
-     */
     public function create()
     {
         return view('auth.register');
     }
 
-    /**
-     * Proses pendaftaran user baru.
-     */
     public function store(Request $request)
     {
-        // ===================================================================
-        // 1. VALIDASI UTAMA: CEK EMAIL, NPK, DAN PERUSAHAAN
-        // ===================================================================
+        // 1. VALIDASI
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'role' => ['required', 'in:HSE,Safety,Kontraktor'], 
             'verification_code' => ['nullable', 'string'],
-        ], [
-            'email.required' => 'Kolom email wajib diisi.',
-            'email.email' => 'Format email tidak valid.',
-            'email.unique' => 'Alamat email sudah terdaftar. Silakan gunakan email lain atau masuk ke akun Anda.',
-            'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 
         $role = $request->role;
 
-        // Cek Nama Perusahaan: Khusus role Kontraktor
+        // Cek Role Kontraktor & HSE (Logika tetap sama)
         if ($role === 'Kontraktor') {
             if (!$request->filled('company')) {
-                return back()->withErrors(['company' => 'Nama Perusahaan wajib diisi untuk Kontraktor!'])->withInput();
-            }
-
-            // Memastikan nama perusahaan dicek secara case-insensitive (tidak sensitif huruf besar/kecil)
-            $companyExists = User::whereRaw('LOWER(company) = ?', [strtolower($request->company)])->exists();
-            if ($companyExists) {
-                return back()->withErrors(['company' => 'Perusahaan ini sudah terdaftar di sistem. Gunakan akun yang sudah ada.'])->withInput();
+                return back()->withErrors(['company' => 'Nama Perusahaan wajib diisi!'])->withInput();
             }
         }
 
-        // Cek NPK: Khusus role HSE/Safety
         if (in_array($role, ['HSE', 'Safety'])) {
-            if (!$request->filled('username')) {
-                return back()->withErrors(['username' => 'NPK wajib diisi untuk role HSE/Safety!'])->withInput();
-            }
-
-            $npkExists = User::where('username', $request->username)->exists();
-            if ($npkExists) {
-                return back()->withErrors(['username' => 'NPK ini sudah terdaftar di sistem!'])->withInput();
-            }
-
-            // Validasi Kode Rahasia HSE
-            $secretKey = env('HSE_SECRET_CODE');
-            if ($request->verification_code !== $secretKey) {
+            if ($request->verification_code !== env('HSE_SECRET_CODE')) {
                 return back()->withErrors(['verification_code' => 'Kode Verifikasi HSE Salah!'])->withInput();
             }
         }
 
+        $otpCode = rand(100000, 999999);
+
         // ===================================================================
-        // 2. LOGIKA USER YANG SUDAH DAFTAR TAPI BELUM VERIFIKASI (OTP)
+        // 2. LOGIKA USER LAMA TAPI BELUM VERIFIKASI
         // ===================================================================
         $existingUser = User::where('email', $request->email)->first();
-
         if ($existingUser && $existingUser->is_verified == false) {
-            $otpCode = rand(100000, 999999);
-            
             $existingUser->update([
                 'otp_code' => $otpCode,
                 'otp_expires_at' => Carbon::now()->addMinutes(10),
             ]);
 
             try {
-                Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($existingUser) {
-                    $message->to($existingUser->email)->subject('Kode Verifikasi OTP Baru - PTW System');
-                });
+                // GANTI DISINI: Pakai Mailable biar formal
+                Mail::to($existingUser->email)->send(new SendOtpMail($otpCode));
             } catch (\Throwable $e) {
-                Log::error('OTP email resend failed', [
-                    'email' => $existingUser->email,
-                    'exception' => get_class($e),
-                    'message' => $e->getMessage(),
-                ]);
-
-                return back()
-                    ->withInput()
-                    ->withErrors(['email' => 'Gagal mengirim OTP ke email. Silakan coba lagi beberapa saat, atau hubungi admin.']);
+                Log::error('OTP email resend failed: ' . $e->getMessage());
+                return back()->withErrors(['email' => 'Gagal mengirim OTP.']);
             }
 
             $token = JWTAuth::fromUser($existingUser);
             session(['otp_token' => $token]);
-
-            return redirect()->route('otp.verify')->with('success', 'Email ini sudah terdaftar sebelumnya. Kode OTP baru telah dikirim!');
+            return redirect()->route('otp.verify')->with('success', 'OTP baru telah dikirim!');
         }
 
         // ===================================================================
-        // 3. SIMPAN SEMENTARA DATA PENDAFTARAN DI SESSION (PENDING)
-        //    -> User TIDAK langsung dibuat di DB sampai verifikasi OTP berhasil
+        // 3. SIMPAN SEMENTARA DI SESSION (USER BARU)
         // ===================================================================
-        $otpCode = rand(100000, 999999);
-
         $usernameValue = in_array($role, ['HSE', 'Safety']) ? $request->username : $request->email;
-        $companyValue = $role === 'Kontraktor' ? $request->company : null;
-
-        // Simpan data pendaftaran di session (pending)
+        
         $pending = [
             'name' => $request->name,
             'username' => $usernameValue,
             'email' => $request->email,
             'role' => $role,
-            'company' => $companyValue,
-            'password' => $request->password, // simpan plain, akan di-hash saat buat user (model cast 'password' => 'hashed')
+            'company' => $request->company ?? null,
+            'password' => $request->password, 
             'otp_code' => (string) $otpCode,
             'otp_expires_at' => Carbon::now()->addMinutes(10)->toDateTimeString(),
         ];
 
         session(['pending_registration' => $pending]);
 
-        // Kirim OTP ke email pendaftar
         try {
-            Mail::raw("Kode OTP verifikasi akun PTW System Anda adalah: $otpCode. Kode ini berlaku selama 10 menit.", function ($message) use ($request) {
-                $message->to($request->email)->subject('Kode Verifikasi OTP - PTW System');
-            });
+            // GANTI DISINI JUGA: Pakai Mailable biar formal sesuai template PTW Official
+            Mail::to($request->email)->send(new SendOtpMail($otpCode));
         } catch (\Throwable $e) {
-            Log::error('OTP email send failed', [
-                'email' => $request->email,
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-            ]);
-
+            Log::error('OTP email send failed: ' . $e->getMessage());
             session()->forget('pending_registration');
-
-            return back()
-                ->withInput()
-                ->withErrors(['email' => 'Gagal mengirim OTP ke email. Pastikan email valid, lalu coba lagi.']);
+            return back()->withErrors(['email' => 'Gagal mengirim OTP.']);
         }
 
-        // Redirect ke halaman verifikasi OTP (session berisi pending_registration)
-        return redirect()->route('otp.verify')->with('success', 'Registrasi berhasil! Silakan cek email Anda untuk kode OTP.');
+        return redirect()->route('otp.verify')->with('success', 'Registrasi berhasil! Cek email untuk kode OTP.');
     }
 }

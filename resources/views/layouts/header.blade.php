@@ -58,7 +58,7 @@
         border-bottom: 1px solid #f8fafc; transition: 0.2s; text-decoration: none !important;
     }
     .noti-item:hover { background: #f8fafc; }
-    .noti-item.unread { background: #f1f7ff; } /* Warna beda untuk yang belum dibaca */
+    .noti-item.unread { background: #f1f7ff; } 
 
     .noti-img-circle {
         width: 42px; height: 42px; border-radius: 50%;
@@ -168,7 +168,8 @@
                                 <div class="noti-text-box">
                                     <span class="noti-username fw-bold">{{ $n->data['applicant_name'] ?? 'System' }}</span>
                                     <span class="noti-action">
-                                        {{ $n->data['message'] ?? 'Ada permit baru di ' . ($n->data['location'] ?? 'Lokasi') }}
+                                        {{-- PERBAIKAN: Menggunakan {!! !!} agar tag HTML seperti <strong> dari backend dirender dengan benar --}}
+                                        {!! $n->data['message'] ?? 'Ada permit baru di ' . ($n->data['location'] ?? 'Lokasi') !!}
                                     </span>
                                     <span class="noti-time">
                                         <i class="fa-regular fa-clock me-1"></i>{{ $n->created_at->diffForHumans() }}

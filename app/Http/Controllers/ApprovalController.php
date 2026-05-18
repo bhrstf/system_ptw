@@ -3,25 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Permit;
-use App\Models\User; // <-- Wajib dipanggil biar bisa nyari kontraktor & admin
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-
-// --- TAMBAHAN IMPORT UNTUK NOTIFIKASI ---
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\PtwStatusNotification;
-use App\Notifications\NewAccountNotification;
-// ----------------------------------------
 
 class ApprovalController extends Controller
 {
     /**
-     * Menampilkan daftar permit yang butuh persetujuan (Pending & Approved)
+     * Menampilkan daftar permit yang butuh persetujuan
      */
     public function index()
     {
-        // Ambil data permit yang statusnya pending (kantor) atau approved (lapangan)
         $approvals = Permit::whereIn('status', ['pending', 'approved'])
                           ->latest()
                           ->paginate(10);
@@ -30,7 +25,7 @@ class ApprovalController extends Controller
     }
 
     /**
-     * Update status permit dari kantor (Approve/Reject Office)
+     * Tahap 1: Verifikasi oleh Kantor (HSE/Admin)
      */
     public function update(Request $request, $id)
     {
@@ -42,7 +37,7 @@ class ApprovalController extends Controller
         try {
             $permit = Permit::findOrFail($id);
             
-            // Proses Update menggunakan Mass Assignment
+            // Update status ke 'approved' (Artinya lolos tahap kantor)
             $permit->update([
                 'status' => $request->status,
                 'manager_name' => Auth::user()->name, 
@@ -50,31 +45,33 @@ class ApprovalController extends Controller
                 'updated_at' => now()
             ]);
 
-            // --- KODE NOTIFIKASI: KIRIM KE KONTRAKTOR (OFFICE APPROVAL) ---
+            // Kirim Notifikasi ke Kontraktor
             $kontraktor = User::find($permit->user_id);
             if ($kontraktor) {
-                $statusIndo = $request->status == 'approved' ? 'Disetujui Kantor (Menunggu Validasi Lapangan)' : 'Ditolak';
+                // Bahasa lebih formal sesuai standar perusahaan
+                $statusIndo = $request->status == 'approved' 
+                    ? 'Diverifikasi (Menunggu Validasi Lapangan)' 
+                    : 'Permohonan Ditolak';
                 $kontraktor->notify(new PtwStatusNotification($permit, $statusIndo));
             }
-            // --------------------------------------------------------------
 
+            // Pesan sukses tanpa nomor PTW karena belum aktif
             $message = $request->status == 'approved' 
-                ? 'Permit PTW-' . str_pad($permit->id, 5, '0', STR_PAD_LEFT) . ' Berhasil Disetujui Kantor!' 
+                ? 'Permit Berhasil Diverifikasi! Silakan lanjut ke tahap Validasi Lapangan (PJA).' 
                 : 'Permit Telah Ditolak.';
 
             return redirect()->route('approvals.index')->with('success', $message);
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal memproses approval: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal memproses verifikasi: ' . $e->getMessage());
         }
     }
 
     /**
-     * Validasi Lapangan oleh PJA (Mengubah status dari Approved menjadi ACTIVE)
+     * Tahap 2: Validasi Lapangan oleh PJA (Penerbitan Nomor & Status ACTIVE)
      */
     public function validateField(Request $request, $id)
     {
-        // 1. Validasi input dari form modal
         $request->validate([
             'pja_name' => 'required|string|max:255',
             'signature_pja' => 'required', 
@@ -83,39 +80,30 @@ class ApprovalController extends Controller
         try {
             $permit = Permit::findOrFail($id);
 
-            // 2. Update manual satu per satu agar lebih "galak" dan pasti ke database
+            // LOGIKA PENOMORAN: Nomor baru dibuat SAAT INI (ketika divalidasi lapangan)
+            // Menghitung permit yang sudah punya nomor untuk urutan selanjutnya
+            $count = Permit::whereNotNull('ptw_number')->count() + 1;
+            $newPtwNumber = 'PTW-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+
+            // Update data validasi lapangan
             $permit->pja_name = $request->pja_name;
             $permit->signature_pja = $request->signature_pja;
             $permit->validated_at = now();
-            $permit->status = 'active'; // Status berubah jadi ACTIVE agar pekerjaan bisa dimulai
+            $permit->status = 'active'; 
+            $permit->ptw_number = $newPtwNumber; // Nomor resmi terbit di sini
             
-            // 3. Simpan perubahan
             $permit->save();
 
-            // --- KODE NOTIFIKASI: KIRIM KE KONTRAKTOR ---
+            // Notifikasi status ACTIVE ke Kontraktor
             $kontraktor = User::find($permit->user_id);
             if ($kontraktor) {
-                $kontraktor->notify(new PtwStatusNotification($permit, 'ACTIVE (Sudah Divalidasi Lapangan)'));
+                $kontraktor->notify(new PtwStatusNotification($permit, 'active'));
             }
 
-            // --- KODE NOTIFIKASI: KIRIM KE MASTER / SUPERADMIN ---
-            $masters = User::whereIn('role', ['master', 'superadmin'])->get();
-            if ($masters->count() > 0) {
-                $nomorSurat = $permit->ptw_number ?? 'PTW-' . str_pad($permit->id, 5, '0', STR_PAD_LEFT);
-                Notification::send(
-                    $masters, 
-                    new NewAccountNotification(
-                        'PTW Telah Aktif', 
-                        'Pengajuan dengan nomor <strong>' . $nomorSurat . '</strong> telah berhasil divalidasi lapangan dan berstatus ACTIVE.'
-                    )
-                );
-            }
-            // -----------------------------------------------------
-
-            return redirect()->route('approvals.index')->with('success', 'Validasi Lapangan Berhasil! Status Permit PTW-' . str_pad($permit->id, 5, '0', STR_PAD_LEFT) . ' sekarang ACTIVE.');
+            return redirect()->route('approvals.index')->with('success', "Validasi Lapangan Berhasil! Nomor Permit {$newPtwNumber} telah terbit dan berstatus ACTIVE.");
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal melakukan validasi: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal melakukan validasi lapangan: ' . $e->getMessage());
         }
     }
 }

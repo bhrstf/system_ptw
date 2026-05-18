@@ -270,7 +270,7 @@
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6"><label class="small fw-bold">JSA File</label><input type="file" name="jsa_file" class="form-control" accept=".pdf" required></div>
-                        <div class="col-md-6"><label class="small fw-bold">HIRADC File</label><input type="file" name="hiradc_file" class="form-control" accept=".pdf" required></div>
+                        <div class="col-md-6"><label class="small fw-bold">HIRADC File</label><input type="file" name="hiradc_file" class="form-control" accept=".pdf"required></div>
                         <div class="col-md-6"><label class="small fw-bold">Daftar Pekerja</label><input type="file" name="worker_list_file" class="form-control" accept=".pdf" required></div>
                         <div class="col-md-6"><label class="small fw-bold">Sertifikat Kompetensi</label><input type="file" name="competency_cert_file" class="form-control" accept=".pdf" required></div>
                         <div class="col-md-6"><label class="small fw-bold">Prosedur Kerja</label><input type="file" name="work_procedure_file" class="form-control" accept=".pdf" required></div>
@@ -391,19 +391,72 @@
         }
 
         // 4. SIGNATURES & QUILL INITIALIZATION
-        const padM = new SignaturePad(document.getElementById('padM'));
-        const padA = new SignaturePad(document.getElementById('padA'));
+        const canvasM = document.getElementById('padM');
+        const canvasA = document.getElementById('padA');
+
+        const padM = new SignaturePad(canvasM);
+        const padA = new SignaturePad(canvasA);
+
+        // Fungsi agar koordinat klik = koordinat goresan
+        function resizeCanvas() {
+            [canvasM, canvasA].forEach(canvas => {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                
+                // Bersihkan pad agar tidak melar saat resize (opsional)
+                // padM.clear(); 
+                // padA.clear();
+            });
+        }
+
+        // Jalankan saat halaman dibuka
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
         const quillTools = new Quill('#editor-tools', { theme: 'snow' });
         const quillScope = new Quill('#editor-scope', { theme: 'snow' });
 
-        function clearPad(type) { type === 'M' ? padM.clear() : padA.clear(); }
+        // Fungsi untuk menghapus coretan signature dari onclick HTML
+        function clearPad(type) {
+            if (type === 'M') {
+                padM.clear();
+            } else if (type === 'A') {
+                padA.clear();
+            }
+        }
 
-        document.getElementById('permitForm').onsubmit = function() {
-            document.getElementById('tools_used').value = quillTools.root.innerHTML;
-            document.getElementById('work_scope_detail').value = quillScope.root.innerHTML;
-            document.getElementById('sm').value = padM.isEmpty() ? '' : padM.toDataURL();
-            document.getElementById('sa').value = padA.isEmpty() ? '' : padA.toDataURL();
-        };
+    // 5. FORM SUBMIT HANDLING (WAJIB ADA BIAR DATA QUILL & CANVAS TERKIRIM)
+        const permitForm = document.getElementById('permitForm');
+
+        if (permitForm) {
+            permitForm.addEventListener('submit', function(e) {
+                // Pindahkan data dari Quill Tools ke hidden input
+                const toolsInput = document.getElementById('tools_used');
+                if (toolsInput) {
+                    toolsInput.value = quillTools.root.innerHTML === '<p><br></p>' ? '' : quillTools.root.innerHTML;
+                }
+
+                // Pindahkan data dari Quill Scope ke hidden input
+                const scopeInput = document.getElementById('work_scope_detail');
+                if (scopeInput) {
+                    scopeInput.value = quillScope.root.innerHTML === '<p><br></p>' ? '' : quillScope.root.innerHTML;
+                }
+
+                // Pindahkan data Tanda Tangan Manager ke hidden input
+                const smInput = document.getElementById('sm');
+                if (smInput && !padM.isEmpty()) {
+                    smInput.value = padM.toDataURL('image/png');
+                }
+
+                // Pindahkan data Tanda Tangan Applicant ke hidden input
+                const saInput = document.getElementById('sa');
+                if (saInput && !padA.isEmpty()) {
+                    saInput.value = padA.toDataURL('image/png');
+                }
+            });
+        }
     </script>
 </body>
 </html>

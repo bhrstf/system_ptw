@@ -25,9 +25,15 @@ class NewPtwSubmittedNotification extends Notification
 
     public function toDatabase($notifiable)
     {
+        // Menggunakan ptw_number agar konsisten dengan sistem yang sedang kamu bangun
+        $ptwNumber = $this->ptw->ptw_number ?? $this->ptw->nomor_ptw;
+
         return [
-            'message' => 'Pengajuan PTW Baru Masuk',
-            'detail' => 'Ada pengajuan PTW baru (Nomor: ' . $this->ptw->nomor_ptw . ') dari <strong>' . $this->namaKontraktor . '</strong>. Silakan segera ditinjau.',
+            'title' => 'Pengajuan Permit Baru',
+            'message' => "Permohonan PTW <strong>{$ptwNumber}</strong> telah diajukan oleh <strong>{$this->namaKontraktor}</strong>. Mohon segera lakukan tinjauan dokumen.",
+            'ptw_id' => $this->ptw->id,
+            'type' => 'submission',
+            'icon' => 'fa-file-import text-warning',
         ];
     }
 }

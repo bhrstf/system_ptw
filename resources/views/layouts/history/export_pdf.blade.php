@@ -107,7 +107,7 @@
                 <th colspan="2">Time</th>
                 <th colspan="4">Duration Details</th>
                 <th rowspan="2" class="w-is">Inspector</th>
-                <th rowspan="2" class="w-in">Man Hours</th>
+                <th rowspan="2" class="w-in">Man Powers</th>
                 <th colspan="8">Permit Types</th>
                 <th rowspan="2" class="w-re">Remark</th>
             </tr>
@@ -187,12 +187,12 @@
                 <td>{{ Str::limit($h->applicant_name, 15) }}</td>
                 <td>{{ $start->format('H:i') }}</td>
                 <td>{{ $end->format('H:i') }}</td>
-                <td>{{ $totalDays }}</td>
-                <td>{{ $weekends }}</td>
-                <td>{{ $hoursExp }}</td>
-                <td>{{ $totalDays }}</td>
+                <td>{{ number_format($totalDays, 0) }}</td>
+                <td>{{ number_format($weekends, 0) }}</td>
+                <td>{{ number_format($hoursExp, 0) }}</td>
+                <td>{{ number_format($totalDays, 0) }}</td>
                 <td style="font-weight: bold;">{{ $inspector }}</td>
-                <td>{{ $h->total_manhours ?? ($hoursExp * 1) }}</td>
+                <td>{{ (int)($h->man_power ?? 0) }}</td>
                 <td>{{ $hasType('Hot') }}</td>
                 <td>{{ $hasType('Electrical') }}</td>
                 <td>{{ $hasType('Excavation') }}</td>

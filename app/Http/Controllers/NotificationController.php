@@ -4,41 +4,43 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User; // <-- Tambahkan ini sayang biar dia kenal Model User
+use App\Models\User;
 
 class NotificationController extends Controller
 {
     /**
-     * Fungsi buat tandai semua sudah dibaca
+     * Menandai seluruh notifikasi pengguna sebagai telah dibaca.
      */
     public function markAllRead()
     {
         /** @var User $user */
         $user = Auth::user();
 
-        if ($user) {
-            // Ini akan merubah unread menjadi read di database
+        if ($user && $user->unreadNotifications->count() > 0) {
             $user->unreadNotifications->markAsRead();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Semua notifikasi ditandai telah dibaca'
+                'message' => 'Seluruh notifikasi telah berhasil diperbarui.'
             ]);
         }
 
-        return response()->json(['success' => false], 401);
+        return response()->json([
+            'success' => true, 
+            'message' => 'Tidak ada notifikasi baru.'
+        ]);
     }
 
     /**
-     * Fungsi buat nampilin halaman "Lihat Semua Aktivitas"
+     * Menampilkan daftar riwayat aktivitas dan notifikasi sistem.
      */
     public function index()
     {
         /** @var User $user */
         $user = Auth::user();
 
-        // Ambil semua notifikasi dengan pagination (10 per halaman)
-        $notifications = $user->notifications()->paginate(10);
+        // Menggunakan simplePaginate atau paginate untuk performa di produksi
+        $notifications = $user->notifications()->latest()->paginate(15);
 
         return view('layouts.notifications.index', compact('notifications'));
     }

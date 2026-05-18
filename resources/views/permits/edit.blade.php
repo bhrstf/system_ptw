@@ -226,11 +226,17 @@
                                     <div class="sub-judul-checklist" style="color: {{ $theme['bg'] }}; filter: brightness(0.6);">{{ $subJudul }}</div>
                                     <div class="row">
                                         @foreach($questions as $q)
-                                        <div class="col-md-6 mb-2">
+                                        <div class="col-md-6 mb-2 checklist-container">
                                             <div class="form-check">
-                                                <input type="checkbox" name="safety_checklists[]" value="{{ $q }}" class="form-check-input" {{ in_array($q, $curChecklist) ? 'checked' : '' }}>
+                                                <input type="checkbox" name="safety_checklists[]" value="{{ $q }}" class="form-check-input risk-checkbox" {{ in_array($q, $curChecklist) ? 'checked' : '' }}>
                                                 <label class="form-check-label small text-muted">{{ $q }}</label>
                                             </div>
+                                            @if(str_contains(strtolower($q), 'lainnya'))
+                                                @php $chkSlug = Str::slug($subJudul); @endphp
+                                                <div class="other-input-container mt-1 {{ isset($permit->safety_checklists_other[$chkSlug]) ? '' : 'd-none' }}">
+                                                    <input type="text" name="safety_checklists_other[{{ $chkSlug }}]" class="form-control form-control-sm" value="{{ $permit->safety_checklists_other[$chkSlug] ?? '' }}" placeholder="Sebutkan lainnya...">
+                                                </div>
+                                            @endif
                                         </div>
                                         @endforeach
                                     </div>
@@ -242,25 +248,62 @@
 
                 {{-- Section 4: Documents --}}
                 <div class="section-card">
-                    <div class="section-title mb-4 fw-bold" style="color: #003380; border-left: 4px solid #f59e0b; padding-left: 10px;">Documents Update</div>
-                    <div class="alert alert-info py-2 small mb-3">Biarkan kosong jika tidak ingin mengganti dokumen lama.</div>
-                    <div class="row g-3">
-                        @php
-                        $fileLabels = [
-                            'jsa_file' => 'JSA File', 'hiradc_file' => 'HIRADC File', 
-                            'worker_list_file' => 'Daftar Pekerja', 'competency_cert_file' => 'Sertifikat Kompetensi',
-                            'work_procedure_file' => 'Prosedur Kerja', 'tool_cert_file' => 'Sertifikat Alat (Opsional)'
-                        ];
-                        @endphp
-                        @foreach($fileLabels as $field => $label)
+                    <div class="section-title mb-2 fw-bold" style="color: #003380; border-left: 4px solid #f59e0b; padding-left: 10px;">Documents Update</div>
+                    <div class="text-muted small mb-3">* Seluruh dokumen wajib diunggah dalam format <strong>PDF</strong>.</div>
+                    
+                    <div class="alert alert-info py-2 small mb-4" style="background-color: #d1f4ff; border: 1px solid #bce8f1; color: #31708f;">
+                        Biarkan kosong jika tidak ingin mengganti dokumen lama.
+                    </div>
+                    
+                    <div class="row g-4">
                         <div class="col-md-6">
-                            <label class="small fw-bold text-muted">{{ $label }}</label>
-                            <input type="file" name="{{ $field }}" class="form-control">
-                            @if($permit->$field)
-                                <div class="mt-1"><small class="text-primary"><i class="fas fa-file-pdf me-1"></i><a href="{{ Storage::url($permit->$field) }}" target="_blank">Lihat File Lama</a></small></div>
+                            <label class="small fw-bold text-dark mb-2">JSA File</label>
+                            <input type="file" name="jsa_file" class="form-control" accept=".pdf">
+                            @if($permit->jsa_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->jsa_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
                             @endif
                         </div>
-                        @endforeach
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">HIRADC File</label>
+                            <input type="file" name="hiradc_file" class="form-control" accept=".pdf">
+                            @if($permit->hiradc_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->hiradc_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">Daftar Pekerja</label>
+                            <input type="file" name="worker_list_file" class="form-control" accept=".pdf">
+                            @if($permit->worker_list_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->worker_list_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">Sertifikat Kompetensi</label>
+                            <input type="file" name="competency_cert_file" class="form-control" accept=".pdf">
+                            @if($permit->competency_cert_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->competency_cert_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">Prosedur Kerja</label>
+                            <input type="file" name="work_procedure_file" class="form-control" accept=".pdf">
+                            @if($permit->work_procedure_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->work_procedure_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-dark mb-2">Sertifikat Alat, Bahan, dan Inspeksi Peralatan Listrik</label>
+                            <input type="file" name="tool_cert_file" class="form-control" accept=".pdf">
+                            <div class="text-muted mt-2" style="font-size: 0.75rem;"><i class="fas fa-info-circle me-1"></i>Contoh dokumen: SLO, MSDS, atau hasil Inspeksi Mesin Las.</div>
+                            @if($permit->tool_cert_file)
+                                <div class="mt-2"><small><a href="{{ Storage::url($permit->tool_cert_file) }}" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-primary me-1"></i>Lihat File Lama</a></small></div>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
@@ -299,14 +342,47 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 
     <script>
-        // INIT QUILL & SIGNATURE
+        // INIT QUILL
         const quillTools = new Quill('#editor-tools', { theme: 'snow' });
         const quillScope = new Quill('#editor-scope', { theme: 'snow' });
-        const padM = new SignaturePad(document.getElementById('padM'));
-        const padA = new SignaturePad(document.getElementById('padA'));
+
+        // INIT SIGNATURE PADS
+        const canvasM = document.getElementById('padM');
+        const canvasA = document.getElementById('padA');
+        const padM = new SignaturePad(canvasM);
+        const padA = new SignaturePad(canvasA);
+
+        // FUNGSI RESIZE AGAR GOESAN PAS SAMA KURSOR
+        function resizeCanvas() {
+            [canvasM, canvasA].forEach(canvas => {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                
+                // Simpan data lama sebelum resize supaya gak hilang waktu di-scale
+                let data = null;
+                let pad = canvas.id === 'padM' ? padM : padA;
+                if (!pad.isEmpty()) {
+                    data = pad.toDataURL();
+                }
+
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                pad.clear(); 
+
+                // Balikin datanya kalau ada
+                if (data) {
+                    pad.fromDataURL(data);
+                }
+            });
+        }
+
+        window.addEventListener("resize", resizeCanvas);
 
         // LOAD SIGNATURE DATA
         window.onload = function() {
+            // Panggil resize di awal biar ukuran canvas langsung benar
+            resizeCanvas();
+
             const sigM = document.getElementById('sm').value;
             const sigA = document.getElementById('sa').value;
             if (sigM) padM.fromDataURL(sigM);
@@ -318,7 +394,7 @@
         // TOGGLE LAINNYA
         document.querySelectorAll('.risk-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
-                const container = this.closest('.hazard-container, .ppe-container');
+                const container = this.closest('.hazard-container, .ppe-container, .checklist-container');
                 if (container) {
                     const otherInput = container.querySelector('.other-input-container');
                     const labelText = this.nextElementSibling.innerText.toLowerCase();
