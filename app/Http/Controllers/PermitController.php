@@ -63,7 +63,6 @@ class PermitController extends Controller
         if ($role === 'kontraktor') {
             $totalKontraktor = 1; 
         } elseif (in_array($role, ['hse', 'hse/safety', 'master', 'admin', 'superadmin'])) {
-            // Pakai '%kontraktor%' biar spasi nyempil di database tetap terhitung
             $totalKontraktor = User::where('role', 'LIKE', '%kontraktor%')->count();
         } else {
             $totalKontraktor = 0;
@@ -166,7 +165,10 @@ class PermitController extends Controller
 
         try {
             DB::beginTransaction();
-            
+            $request->merge([
+            'tools_text' => strip_tags($request->tools_used),
+            'scope_text' => strip_tags($request->work_scope_detail),
+            ]);
             $request->validate([
                 'pic_lead' => 'required|string|max:255',
                 'pic_batamindo' => 'nullable|string|max:255',
@@ -176,9 +178,29 @@ class PermitController extends Controller
                 'ref_doc' => 'nullable|string|max:255',
                 'valid_from' => 'required|date',
                 'valid_until' => 'required|date|after:valid_from',
+                'rencana_durasi_bypass_jam' => 'nullable|integer',
+                'jumlah_titik_isolasi'      => 'nullable|integer',
+                'penjelasan_zero_energy'    => 'nullable|string',
+                
+                // Aturan validasi
+                'tools_text' => 'required',
+                'scope_text' => 'required',
+            ], [
+                // PESAN ERROR (Harus sesuai dengan nama field di atas)
+                'tools_text.required' => 'Kolom Tools/Equipment Used wajib diisi!',
+                'scope_text.required' => 'Kolom Detailed Work Scope wajib diisi!',
             ]);
 
             $data = $request->all();
+            
+            // --- Assign Data Baru ---
+            $data['rencana_durasi_bypass_jam']   = $request->rencana_durasi_bypass_jam;
+            $data['jumlah_titik_isolasi']        = $request->jumlah_titik_isolasi;
+            $data['penjelasan_zero_energy']      = $request->penjelasan_zero_energy;
+            $data['check_content_identified']    = $request->has('check_content_identified');
+            $data['check_isolation_diagram']     = $request->has('check_isolation_diagram');
+            $data['check_zero_energy_achieved']  = $request->has('check_zero_energy_achieved');
+
             $data['permit_type'] = $request->input('permit_type', []);
             $data['hazards'] = $request->input('hazards', []);
             $data['ppe'] = $request->input('ppe', []);
@@ -245,9 +267,6 @@ class PermitController extends Controller
     /**
      * --- UPDATE PERMIT (SIMPAN PERUBAHAN) ---
      */
-    /**
-     * --- UPDATE PERMIT (SIMPAN PERUBAHAN) ---
-     */
     public function update(Request $request, $id)
     {
         $permit = Permit::findOrFail($id);
@@ -257,7 +276,7 @@ class PermitController extends Controller
         try {
             DB::beginTransaction();
             
-            // 1. VALIDASI: Gunakan 'sometimes' agar masteradmin bisa edit sebagian saja tanpa error
+            // 1. VALIDASI
             $request->validate([
                 'pic_lead' => 'sometimes|required|string|max:255',
                 'pic_batamindo' => 'nullable|string|max:255',
@@ -267,12 +286,24 @@ class PermitController extends Controller
                 'ref_doc' => 'nullable|string|max:255',
                 'valid_from' => 'sometimes|required|date',
                 'valid_until' => 'sometimes|required|date|after:valid_from',
+                // --- Validasi Field Baru ---
+                'rencana_durasi_bypass_jam' => 'nullable|integer',
+                'jumlah_titik_isolasi'      => 'nullable|integer',
+                'penjelasan_zero_energy'    => 'nullable|string',
             ]);
 
             // 2. AMBIL SEMUA INPUT
             $data = $request->all();
 
-            // 3. LOGIKA ARRAY (Checkbox): Pastikan jika kosong, tetap dikirim sebagai array kosong []
+            // --- Assign Data Baru ---
+            $data['rencana_durasi_bypass_jam']   = $request->rencana_durasi_bypass_jam;
+            $data['jumlah_titik_isolasi']        = $request->jumlah_titik_isolasi;
+            $data['penjelasan_zero_energy']      = $request->penjelasan_zero_energy;
+            $data['check_content_identified']    = $request->has('check_content_identified');
+            $data['check_isolation_diagram']     = $request->has('check_isolation_diagram');
+            $data['check_zero_energy_achieved']  = $request->has('check_zero_energy_achieved');
+
+            // 3. LOGIKA ARRAY (Checkbox)
             $data['permit_type'] = $request->input('permit_type', $permit->permit_type);
             $data['hazards'] = $request->input('hazards', []);
             $data['ppe'] = $request->input('ppe', []);
@@ -280,26 +311,24 @@ class PermitController extends Controller
             $data['hazards_other'] = $request->input('hazards_other') ?: null;
             $data['ppe_other'] = $request->input('ppe_other', []) ?: null;
 
-            // 4. LOGIKA BOOLEAN (Checkbox Persetujuan)
+            // 4. LOGIKA BOOLEAN
             $data['agreed_to_terms'] = $request->has('agreed_to_terms') ? 1 : 0;
             $data['applicant_confirmation'] = $request->has('applicant_confirmation') ? 1 : 0;
 
-            // 5. PENANGANAN FILE: Hapus file lama jika ada upload file baru
+            // 5. PENANGANAN FILE
             $fileFields = ['jsa_file', 'hiradc_file', 'worker_list_file', 'competency_cert_file', 'work_procedure_file', 'tool_cert_file'];
             foreach ($fileFields as $field) {
                 if ($request->hasFile($field)) {
-                    // Hapus file fisik lama di Railway agar tidak menumpuk
                     if ($permit->$field) { 
                         Storage::disk('public')->delete($permit->$field); 
                     }
                     $data[$field] = $request->file($field)->store('permits/documents', 'public');
                 } else {
-                    // Jika tidak upload file baru, tetap gunakan path file lama
                     unset($data[$field]); 
                 }
             }
 
-            // 6. CATATAN REVISI: Khusus untuk Admin/Master
+            // 6. CATATAN REVISI
             if (in_array($role, ['master', 'superadmin', 'admin', 'hse/safety', 'hse'])) {
                 $data['last_revision_note'] = $request->revision_note ?? 'Diperbarui oleh Administrator pada ' . now()->format('d/m/Y H:i');
             }
@@ -309,7 +338,7 @@ class PermitController extends Controller
             
             DB::commit();
             
-            // 8. REDIRECT: Arahkan kembali ke halaman manajemen ptw
+            // 8. REDIRECT
             $targetRoute = in_array($role, ['master', 'admin', 'superadmin']) ? 'superadmin.edit_ptw' : 'dashboard';
             
             return redirect()->route($targetRoute)->with('success', 'Perubahan Permit ID: ' . $id . ' Berhasil Disimpan!');
@@ -364,7 +393,6 @@ class PermitController extends Controller
 
         $pdf = Pdf::loadView('layouts.history.pdf_ptw', compact('permit', 'checklistGrouped'));
         
-        // Penamaan file PDF berdasarkan nomor PTW (jika sudah aktif)
         $fileName = $permit->ptw_number ? str_replace('/', '-', $permit->ptw_number) : 'PTW-' . $permit->id;
         return $pdf->stream($fileName . '.pdf');
     }
@@ -382,7 +410,6 @@ class PermitController extends Controller
         try {
             $permit = Permit::findOrFail($id);
             
-            // Mengubah status ke ACTIVE akan memicu penomoran otomatis di Model Permit
             $permit->update(['status' => Permit::STATUS_ACTIVE]); 
             
             // --- KODE NOTIFIKASI TAMBAHAN: KIRIM KE KONTRAKTOR ---
@@ -455,4 +482,4 @@ class PermitController extends Controller
             return back()->with('error', 'Gagal memperbarui status.');
         }
     }
-}   
+}

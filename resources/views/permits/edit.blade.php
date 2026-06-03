@@ -191,59 +191,127 @@
 
                     <label class="fw-bold mb-3 border-top pt-4">PPE (Personal Protective Equipment)</label>
                     <div class="row mb-4">
-                        @php $curPpe = $permit->ppe ?? []; @endphp
-                        @foreach(\App\Models\Permit::getPpeList() as $category=>$items)
-                        <div class="col-12 fw-bold small text-primary mt-2 mb-2">{{ $category }}</div>
-                        @foreach($items as $ppe)
-                        <div class="col-md-4 col-6 mb-1 ppe-container">
-                            <div class="form-check">
-                                <input type="checkbox" name="ppe[]" value="{{ $ppe }}" class="form-check-input risk-checkbox" {{ in_array($ppe, $curPpe) ? 'checked' : '' }}>
-                                <label class="form-check-label small">{{ $ppe }}</label>
-                            </div>
-                            @if(str_contains(strtolower($ppe), 'lainnya'))
+                        @php 
+                            $curPpe = $permit->ppe ?? []; 
+                            // Pastikan ppe_other adalah array, jika null buat array kosong
+                            $ppeOtherData = $permit->ppe_other ?? []; 
+                        @endphp
+
+                        @foreach(\App\Models\Permit::getPpeList() as $category => $items)
+                            <div class="col-12 fw-bold small text-primary mt-2 mb-2">{{ $category }}</div>
                             @php $catSlug = Str::slug($category); @endphp
-                            <div class="other-input-container {{ isset($permit->ppe_other[$catSlug]) ? '' : 'd-none' }}">
-                                <input type="text" name="ppe_other[{{ $catSlug }}]" class="form-control form-control-sm" value="{{ $permit->ppe_other[$catSlug] ?? '' }}" placeholder="Sebutkan lainnya...">
-                            </div>
-                            @endif
-                        </div>
-                        @endforeach
+                            
+                            @foreach($items as $ppe)
+                                @php
+                                    $isLainnya = str_contains(strtolower($ppe), 'lainnya');
+                                    // Jika Lainnya, tambahkan slug kategori agar unik (misal: "Lainnya_kepala-wajah")
+                                    $uniqueValue = $isLainnya ? 'Lainnya_' . $catSlug : $ppe;
+                                    
+                                    // Cek apakah data ini ada di array $curPpe
+                                    $isChecked = in_array($uniqueValue, $curPpe);
+                                @endphp
+
+                                <div class="col-md-4 col-6 mb-1 ppe-container">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                            name="ppe[]" 
+                                            value="{{ $uniqueValue }}" 
+                                            class="form-check-input risk-checkbox" 
+                                            {{ $isChecked ? 'checked' : '' }}>
+                                        <label class="form-check-label small">{{ $ppe }}</label>
+                                    </div>
+                                    
+                                    @if($isLainnya)
+                                        {{-- Input teks ini hanya tampil jika checkboxnya tercentang --}}
+                                        <div class="other-input-container {{ $isChecked ? '' : 'd-none' }}">
+                                            <input type="text" 
+                                                name="ppe_other[{{ $catSlug }}]" 
+                                                class="form-control form-control-sm" 
+                                                value="{{ $permit->ppe_other[$catSlug] ?? '' }}" 
+                                                placeholder="Sebutkan lainnya...">
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
                         @endforeach
                     </div>
 
                     <div id="checklist-master-wrapper">
-                        @php $curChecklist = $permit->safety_checklists ?? []; @endphp
-                        @foreach(\App\Models\Permit::getMasterChecklist() as $ptwType => $categories)
-                            @php 
-                                $theme = \App\Models\Permit::getPermitTheme($ptwType); 
-                                $isSectionActive = in_array($ptwType, $currentTypes);
-                            @endphp
-                            <div class="checklist-section {{ $isSectionActive ? '' : 'd-none' }} mb-4" id="section-{{ Str::slug($ptwType) }}">
-                                <div class="p-3 mb-3 rounded-3 text-center fw-bold shadow-sm" style="background-color: {{ $theme['bg'] }} !important; color: {{ $theme['text'] }} !important;">
-                                    Permit to Work - {{ $theme['label'] }} Checklist
-                                </div>
-                                @foreach($categories as $subJudul => $questions)
-                                    <div class="sub-judul-checklist" style="color: {{ $theme['bg'] }}; filter: brightness(0.6);">{{ $subJudul }}</div>
-                                    <div class="row">
-                                        @foreach($questions as $q)
+                    @php $curChecklist = is_array($permit->safety_checklists) ? $permit->safety_checklists : json_decode($permit->safety_checklists, true) ?? []; @endphp
+
+                    @foreach(\App\Models\Permit::getMasterChecklist() as $ptwType => $categories)
+                        @php 
+                            $theme = \App\Models\Permit::getPermitTheme($ptwType); 
+                            $isSectionActive = in_array($ptwType, $currentTypes);
+                        @endphp
+                        
+                        <div class="checklist-section {{ $isSectionActive ? '' : 'd-none' }} mb-4" id="section-{{ Str::slug($ptwType) }}">
+                            <div class="p-3 mb-3 rounded-3 text-center fw-bold shadow-sm" style="background-color: {{ $theme['bg'] }} !important; color: {{ $theme['text'] }} !important;">
+                                Permit to Work - {{ $theme['label'] }} Checklist
+                            </div>
+                            
+                            @foreach($categories as $subJudul => $questions)
+                                @php
+                                    $isBagian2 = str_contains(strtolower($subJudul), 'bagian 2');
+                                    
+                                    // Ini logika untuk menentukan apakah section ini adalah Cold Work yang spesifik
+                                    $isColdWorkSection = str_contains(strtolower($ptwType), 'cold work') && 
+                                        (str_contains(strtolower($subJudul), 'manual excavation') || 
+                                        str_contains(strtolower($subJudul), 'non-critical lifting') || 
+                                        str_contains(strtolower($subJudul), 'simple isolation'));
+
+                                    // PERBAIKAN LOGIKA VISIBILITAS: Cek apakah ada yang tercentang di section ini
+                                    $anyChecked = false;
+                                    foreach($questions as $q) {
+                                        $qVal = is_array($q) ? ($q['text'] ?? 'Tanpa Nama') : $q;
+                                        if(in_array($qVal, $curChecklist)) { 
+                                            $anyChecked = true; 
+                                            break; 
+                                        }
+                                    }
+                                @endphp
+                                
+                                <div class="sub-judul-checklist" style="color: {{ $theme['bg'] }}; filter: brightness(0.6);">{{ $subJudul }}</div>
+                                
+                                {{-- Perbaikan: Gunakan logic $anyChecked agar data yg sudah tersimpan tidak tersembunyi --}}
+                                <div class="row" @if($isBagian2) style="display: {{ $anyChecked ? 'flex' : 'none' }};" data-bagian="bagian2" @endif data-cold-work-section="{{ $isColdWorkSection ? 'true' : 'false' }}">
+                                    @foreach($questions as $q)
+                                        @php
+                                            $textValue = is_array($q) ? ($q['text'] ?? 'Tanpa Nama') : $q;
+                                            $hasAdditional = is_array($q) && isset($q['input_tambahan']);
+                                            $isLainnya = str_contains(strtolower($textValue), 'lainnya');
+                                        @endphp
+                                        
                                         <div class="col-md-6 mb-2 checklist-container">
                                             <div class="form-check">
-                                                <input type="checkbox" name="safety_checklists[]" value="{{ $q }}" class="form-check-input risk-checkbox" {{ in_array($q, $curChecklist) ? 'checked' : '' }}>
-                                                <label class="form-check-label small text-muted">{{ $q }}</label>
+                                                <input type="checkbox" name="safety_checklists[]" value="{{ $textValue }}" class="form-check-input risk-checkbox" {{ in_array($textValue, $curChecklist) ? 'checked' : '' }} @if($isColdWorkSection) data-cold-work-check="true" @endif>
+                                                <label class="form-check-label small text-muted">{{ $textValue }}</label>
                                             </div>
-                                            @if(str_contains(strtolower($q), 'lainnya'))
-                                                @php $chkSlug = Str::slug($subJudul); @endphp
-                                                <div class="other-input-container mt-1 {{ isset($permit->safety_checklists_other[$chkSlug]) ? '' : 'd-none' }}">
+                                            
+                                            <div class="other-input-container mt-1 {{ in_array($textValue, $curChecklist) ? '' : 'd-none' }}">
+                                                @if($hasAdditional)
+                                                    @php $fieldName = $q['input_tambahan']['name']; @endphp
+                                                    <label class="small fw-bold text-muted d-block">{{ $q['input_tambahan']['label'] }}</label>
+                                                    <input type="text" name="{{ $fieldName }}" class="form-control form-control-sm" value="{{ old($fieldName, $permit->$fieldName ?? '') }}">
+                                                @elseif($isLainnya)
+                                                    @php $chkSlug = Str::slug($subJudul); @endphp
                                                     <input type="text" name="safety_checklists_other[{{ $chkSlug }}]" class="form-control form-control-sm" value="{{ $permit->safety_checklists_other[$chkSlug] ?? '' }}" placeholder="Sebutkan lainnya...">
-                                                </div>
-                                            @endif
+                                                @endif
+                                            </div>
                                         </div>
-                                        @endforeach
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endforeach
-                    </div>
+                                    @endforeach
+                                </div>
+                            @endforeach
+                            
+                            {{-- Perbaikan: ID unik agar tidak konflik --}}
+                            @if(str_contains(strtolower($ptwType), 'cold work'))
+                                <div id="cold-work-bypass-container-{{ Str::slug($ptwType) }}" style="display: {{ in_array('Bypass/Isolation', $curChecklist) ? 'block' : 'none' }}; margin-top: 20px; padding: 15px; background: #e8f4f8; border-radius: 8px;">
+                                    <label class="small fw-bold text-muted mb-2">Rencana Durasi Bypass (Jam)</label>
+                                    <input type="number" name="rencana_durasi_bypass_jam" class="form-control form-control-sm" value="{{ old('rencana_durasi_bypass_jam', $permit->rencana_durasi_bypass_jam) }}">
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
 
                 {{-- Section 4: Documents --}}
@@ -397,16 +465,55 @@
                 const container = this.closest('.hazard-container, .ppe-container, .checklist-container');
                 if (container) {
                     const otherInput = container.querySelector('.other-input-container');
-                    const labelText = this.nextElementSibling.innerText.toLowerCase();
-                    if (labelText.includes('lainnya')) {
+                    if (otherInput) {
                         if (this.checked) {
                             otherInput.classList.remove('d-none');
-                            otherInput.querySelector('input').focus();
+                            const inputField = otherInput.querySelector('input, textarea');
+                            if (inputField) inputField.focus();
                         } else {
                             otherInput.classList.add('d-none');
-                            otherInput.querySelector('input').value = '';
+                            const inputField = otherInput.querySelector('input, textarea');
+                            if (inputField) inputField.value = '';
                         }
                     }
+                }
+
+                // Logic untuk Bagian II: tampilkan ketika ada checkbox di Bagian I yang di-check
+                const checklistSection = this.closest('.checklist-section');
+                if (checklistSection) {
+                    // Cari semua row di dalam section ini
+                    const rows = checklistSection.querySelectorAll('.row');
+                    
+                    rows.forEach(row => {
+                        const subJudulElem = row.previousElementSibling;
+                        if (subJudulElem && subJudulElem.classList.contains('sub-judul-checklist')) {
+                            const subJudulText = subJudulElem.innerText.toLowerCase();
+                            
+                            // Jika row ini adalah "Bagian 2"
+                            if (subJudulText.includes('bagian 2')) {
+                                // Cek apakah ada checkbox di "Bagian 1" yang di-check
+                                const allCheckboxes = checklistSection.querySelectorAll('.risk-checkbox');
+                                let bagian1HasChecked = false;
+                                
+                                allCheckboxes.forEach(cb => {
+                                    const cbRow = cb.closest('.row');
+                                    const cbSubJudul = cbRow.previousElementSibling;
+                                    if (cbSubJudul && cbSubJudul.innerText.toLowerCase().includes('bagian 1')) {
+                                        if (cb.checked) {
+                                            bagian1HasChecked = true;
+                                        }
+                                    }
+                                });
+                                
+                                // Tampilkan/sembunyikan Bagian 2
+                                if (bagian1HasChecked) {
+                                    row.style.display = 'flex';
+                                } else {
+                                    row.style.display = 'none';
+                                }
+                            }
+                        }
+                    });
                 }
             });
         });
