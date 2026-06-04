@@ -111,7 +111,22 @@
                         <div class="col-md-4 col-6 mb-2 hazard-container">
                             <div class="form-check"><input type="checkbox" name="hazards[]" value="{{ $hazard }}" class="form-check-input risk-checkbox"><label class="form-check-label small">{{ $hazard }}</label></div>
                             @if(str_contains(strtolower($hazard), 'lainnya'))
-                            <div class="other-input-container d-none"><input type="text" name="hazards_other" class="form-control form-control-sm" placeholder="Sebutkan lainnya..."></div>
+                            <div class="other-input-container d-none">
+                                <input type="text" name="hazards_other" class="form-control form-control-sm" placeholder="Sebutkan lainnya...">
+                            </div>
+                            <script>
+                            (function() {
+                                const container = document.currentScript.parentElement.querySelector('.other-input-container');
+                                if (!container) return;
+                                const inputField = container.querySelector('input, textarea');
+                                const hasValue = inputField && inputField.value.trim() !== '';
+                                if (hasValue) {
+                                    container.classList.remove('d-none');
+                                } else {
+                                    container.classList.add('d-none');
+                                }
+                            })();
+                            </script>
                             @endif
                         </div>
                         @endforeach
@@ -121,11 +136,27 @@
                     <div class="row mb-4">
                         @foreach(\App\Models\Permit::getPpeList() as $category=>$items)
                         <div class="col-12 fw-bold small text-primary mt-2 mb-2">{{ $category }}</div>
+                        @php $catSlug = Str::slug($category); @endphp
                         @foreach($items as $ppe)
                         <div class="col-md-4 col-6 mb-1 ppe-container">
                             <div class="form-check"><input type="checkbox" name="ppe[]" value="{{ $ppe }}" class="form-check-input risk-checkbox"><label class="form-check-label small">{{ $ppe }}</label></div>
                             @if(str_contains(strtolower($ppe), 'lainnya'))
-                            <div class="other-input-container d-none"><input type="text" name="ppe_other[]" class="form-control form-control-sm" placeholder="Sebutkan lainnya..."></div>
+                            <div class="other-input-container d-none">
+                                <input type="text" name="ppe_other[{{ $catSlug }}]" class="form-control form-control-sm" placeholder="Sebutkan lainnya...">
+                            </div>
+                            <script>
+                            (function() {
+                                const container = document.currentScript.parentElement.querySelector('.other-input-container');
+                                if (!container) return;
+                                const inputField = container.querySelector('input, textarea');
+                                const hasValue = inputField && inputField.value.trim() !== '';
+                                if (hasValue) {
+                                    container.classList.remove('d-none');
+                                } else {
+                                    container.classList.add('d-none');
+                                }
+                            })();
+                            </script>
                             @endif
                         </div>
                         @endforeach
@@ -164,23 +195,53 @@
                                                         <label class="form-check-label small text-muted">{{ $textValue }}</label>
                                                     </div>
                                                     
-                                                    @if(!$isBypass)
+                                                    @if(!$isBypass || !$hasAdditional)
                                                         <div class="other-input-container d-none mt-1">
                                                             @if($hasAdditional)
                                                                 <label class="small fw-bold text-muted d-block">{{ $q['input_tambahan']['label'] }}</label>
-                                                                @if($q['input_tambahan']['type'] === 'textarea')<textarea name="{{ $q['input_tambahan']['name'] }}" class="form-control form-control-sm"></textarea>
-                                                                @else<input type="text" name="{{ $q['input_tambahan']['name'] }}" class="form-control form-control-sm">@endif
+                                                                @php $fieldName = $q['input_tambahan']['name']; @endphp
+                                                                @if($q['input_tambahan']['type'] === 'textarea')<textarea name="safety_checklists_other[{{ $fieldName }}]" class="form-control form-control-sm"></textarea>
+                                                                @else<input type="text" name="safety_checklists_other[{{ $fieldName }}]" class="form-control form-control-sm">@endif
                                                             @elseif($isLainnya)
-                                                                <input type="text" name="checklist_other[]" class="form-control form-control-sm" placeholder="Sebutkan lainnya...">
+                                                                @php $chkSlug = Str::slug($subJudul); @endphp
+                                                                <input type="text" name="safety_checklists_other[{{ $chkSlug }}]" class="form-control form-control-sm" placeholder="Sebutkan lainnya...">
                                                             @endif
                                                         </div>
+                                                        <script>
+                                                        (function() {
+                                                            const container = document.currentScript.parentElement.querySelector('.other-input-container');
+                                                            if (!container) return;
+                                                            const inputField = container.querySelector('input, textarea');
+                                                            const hasValue = inputField && inputField.value.trim() !== '';
+                                                            if (hasValue) {
+                                                                container.classList.remove('d-none');
+                                                            } else {
+                                                                container.classList.add('d-none');
+                                                            }
+                                                        })();
+                                                        </script>
+                                                    @elseif($isBypass && $hasAdditional)
+                                                        {{-- Bypass with input_tambahan akan di-render sekali saja di bawah semua items --}}
                                                     @endif
                                                 </div>
                                             @endforeach
-                                        </div>
-                                        <div class="shared-bypass-container d-none mt-3 p-3 border rounded bg-light">
-                                            <label class="fw-bold small text-muted">Rencana durasi Bypass (Jam) *</label>
-                                            <input type="text" name="bypass_duration" class="form-control" placeholder="Masukkan detail/durasi...">
+
+                                            {{-- Render Shared Bypass Container sekali saja setelah semua items --}}
+                                            @php
+                                                $hasBypassWithAdditional = collect($questions)->contains(function($q) {
+                                                    $text = is_array($q) ? ($q['text'] ?? '') : $q;
+                                                    $isBypass = str_contains(strtolower($text), 'bypass');
+                                                    $hasAdditional = is_array($q) && isset($q['input_tambahan']);
+                                                    return $isBypass && $hasAdditional;
+                                                });
+                                            @endphp
+                                            
+                                            @if($hasBypassWithAdditional)
+                                                <div class="col-12 shared-bypass-container d-none mt-3 p-3 border rounded bg-light">
+                                                    <label class="fw-bold small text-muted d-block">Rencana durasi Bypass (Jam) *</label>
+                                                    <input type="number" name="rencana_durasi_bypass_jam" class="form-control form-control-sm" placeholder="Masukkan durasi dalam jam...">
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                 @endforeach
@@ -261,12 +322,15 @@
             }
         }
 
-        // 3. Logika Bypass
-        if (parentWrapper) {
-            const bypassContainer = parentWrapper.querySelector('.shared-bypass-container');
-            if (bypassContainer) {
-                const anyBypass = Array.from(parentWrapper.querySelectorAll('[data-is-bypass="true"]')).some(cb => cb.checked);
-                bypassContainer.classList.toggle('d-none', !anyBypass);
+        // 3. Logika Shared Bypass Container - Toggle jika ada bypass item yang checked
+        if (checkbox.dataset.isBypass === 'true') {
+            const section = checkbox.closest('.checklist-section');
+            if (section) {
+                const bypassContainer = section.querySelector('.shared-bypass-container');
+                if (bypassContainer) {
+                    const anyBypassChecked = Array.from(section.querySelectorAll('[data-is-bypass="true"]')).some(cb => cb.checked);
+                    bypassContainer.classList.toggle('d-none', !anyBypassChecked);
+                }
             }
         }
     }
@@ -302,6 +366,19 @@
     }
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
+
+    // Initialize all shared bypass containers on page load
+    document.querySelectorAll('.shared-bypass-container').forEach(container => {
+        const section = container.closest('.checklist-section');
+        if (section) {
+            const anyBypassChecked = Array.from(section.querySelectorAll('[data-is-bypass="true"]:checked')).length > 0;
+            if (anyBypassChecked) {
+                container.classList.remove('d-none');
+            } else {
+                container.classList.add('d-none');
+            }
+        }
+    });
 
     const quillTools = new Quill('#editor-tools', { theme: 'snow' });
     const quillScope = new Quill('#editor-scope', { theme: 'snow' });

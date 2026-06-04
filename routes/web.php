@@ -118,7 +118,8 @@ Route::middleware(['auth'])->group(function () {
      * --- 3. GROUP PERMIT TO WORK (STRICT ORDER) ---
      */
     Route::prefix('permit')->name('permits.')->group(function () {
-        Route::get('/', [PermitController::class, 'index'])->name('index'); 
+        Route::get('/', [PermitController::class, 'index'])->name('index');
+        Route::get('/ajax/load', [PermitController::class, 'getPermitsAjax'])->name('ajax.load');
         Route::get('/create', [PermitController::class, 'create'])->name('create');
         Route::post('/store', [PermitController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [PermitController::class, 'edit'])->name('edit');

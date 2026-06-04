@@ -151,7 +151,10 @@
                                     @forelse($audits as $item)
                                         <tr>
                                             <td>
-                                                <span class="fw-bold">PTW-{{ str_pad($item->permit_id, 3, '0', STR_PAD_LEFT) }}</span><br>
+                                                {{-- Mengambil ptw_number langsung dari database melalui relasi --}}
+                                                <span class="fw-bold">
+                                                    {{ $item->permit->ptw_number ?? 'N/A' }}
+                                                </span><br>
                                                 <small class="text-muted">{{ $item->created_at->format('d M Y') }}</small>
                                             </td>
                                             <td><p class="mb-0 small text-truncate" style="max-width: 250px;">{{ $item->finding }}</p></td>

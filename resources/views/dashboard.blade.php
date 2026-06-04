@@ -34,12 +34,14 @@
         .stat-content small { color: #64748b; font-weight: 600; }
 
         /* TABLE SECTION */
-        .permit-section { background: white; border-radius: 28px; box-shadow: 0 15px 50px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; position: relative; overflow: visible !important; }
-        .table-head { background: linear-gradient(90deg, var(--p-blue), #004aad); padding: 22px 35px; color: white; font-weight: 800; border-radius: 28px 28px 0 0; position: relative; z-index: 10; }
+        .permit-section { background: white; border-radius: 28px; box-shadow: 0 15px 50px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; position: static; overflow: visible !important; }
+        .table-head { background: linear-gradient(90deg, var(--p-blue), #004aad); padding: 22px 35px; color: white; font-weight: 800; border-radius: 28px 28px 0 0; position: relative; z-index: 50; }
 
         .btn-filter { background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.2); color: white; backdrop-filter: blur(8px); padding: 8px 18px; border-radius: 50px; font-size: 0.85rem; font-weight: 700; text-decoration: none; }
         
         /* DROPDOWN FILTER */
+        .dropdown { position: relative; z-index: 1050; }
+        
         .dropdown-menu-filter { 
             width: 320px !important; 
             max-width: 90vw; /* Cegah luber di HP */
@@ -47,7 +49,8 @@
             border-radius: 24px !important; 
             box-shadow: 0 20px 60px rgba(0,0,0,0.15) !important; 
             padding: 22px !important; 
-            z-index: 9999 !important; 
+            z-index: 1050 !important;
+            position: absolute !important;
         }
         
         .status-badge { padding: 6px 14px; border-radius: 50px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; border: 1px solid transparent; }
@@ -60,6 +63,40 @@
         .badge-success { background: #f0fdf4; color: #16a34a; border-color: #dcfce7; } /* CLOSED */
 
         .table-responsive { overflow-x: auto; overflow-y: visible !important; }
+
+        /* SCROLLABLE TABLE CONTAINER */
+        .table-scroll-container {
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #f1f5f9;
+            border-radius: 0 0 28px 28px;
+            background: white;
+        }
+
+        .table-scroll-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-scroll-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .table-scroll-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .table-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Firefox Scrollbar */
+        .table-scroll-container {
+            scrollbar-color: #cbd5e1 #f1f5f9;
+            scrollbar-width: thin;
+        }
 
         /* --- RESPONSIVE ADJUSTMENTS (FIXED) --- */
 
@@ -203,9 +240,9 @@
                 </div>
             </div>
 
-            <div class="table-responsive">
+            <div class="table-scroll-container">
                 <table class="table mb-0 align-middle">
-                    <thead class="table-light">
+                    <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
                         <tr>
                             <th class="ps-4"># Nomor PTW</th>
                             <th>Jenis Kerja</th>
@@ -215,43 +252,11 @@
                             <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="permitTableBody">
                         @forelse($permits as $permit)
-                            <tr class="baris-data">
-                                <td class="ps-4">
-                                    @if($permit->ptw_number)
-                                        <div class="fw-bold text-primary" style="font-size: 1.05rem;">{{ $permit->ptw_number }}</div>
-                                    @endif
-                                </td>
-                                <td>{{ is_array($permit->permit_type) ? implode(', ', $permit->permit_type) : $permit->permit_type }}</td>
-                                <td class="kolom-lokasi">{{ $permit->location }}</td>
-                                <td class="kolom-status">
-                                    <span class="status-badge {{ $permit->status_badge }}">{{ strtoupper($permit->status) }}</span>
-                                </td>
-                                <td class="kolom-tanggal" data-raw="{{ $permit->created_at->format('Y-m-d') }}">{{ $permit->created_at->format('d M Y') }}</td>
-                                <td class="text-center">
-                                    <div class="d-flex justify-content-center gap-2">
-                                        {{-- DETAIL --}}
-                                        <a href="{{ route('permits.show', $permit->id) }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-
-                                        {{-- EDIT --}}
-                                        @if($isKontraktor && $permit->status === Permit::STATUS_PENDING)
-                                            <a href="{{ route('permits.edit', $permit->id) }}" class="btn btn-sm btn-warning rounded-pill px-3 fw-bold">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                        @endif
-
-                                        {{-- PDF --}}
-                                        <a href="{{ route('history.pdf_ptw', $permit->id) }}" class="btn btn-sm btn-danger rounded-pill px-3 shadow-sm" target="_blank">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
+                            @include('components.permit-row', compact('permit'))
                         @empty
-                            <tr><td colspan="6" class="text-center py-5 text-muted">Belum ada data permit.</td></tr>
+                            <tr id="emptyRow"><td colspan="6" class="text-center py-5 text-muted">Belum ada data permit.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -323,7 +328,7 @@
                     document.getElementById('startDate').value = "";
                     document.getElementById('endDate').value = "";
                     document.querySelectorAll('.check-status').forEach(c => c.checked = false);
-                    baris.forEach(r => r.style.display = "");
+                    document.querySelectorAll('.baris-data').forEach(r => r.style.display = "");
                 };
             }
         });

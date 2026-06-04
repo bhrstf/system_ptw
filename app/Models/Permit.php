@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Permit extends Model
 {
@@ -22,7 +23,7 @@ class Permit extends Model
         'user_id', 'permit_type', 'valid_from', 'valid_until', 'pic_lead', 'pic_batamindo',
         'applicant_name', 'company', 'email', 'phone', 'location',
         'tools_used', 'ref_doc', 'man_power', 'work_scope_general', 'work_scope_detail',
-        'hazards', 'ppe', 'hazards_other', 'ppe_other', 'safety_checklists', 'additional_instructions',
+        'hazards', 'ppe', 'hazards_other', 'ppe_other', 'safety_checklists','safety_checklists_other', 'additional_instructions',
         'hse_representative', 'jsa_file', 'hiradc_file', 'worker_list_file',
         'competency_cert_file', 'work_procedure_file', 'tool_cert_file',
         'agreed_to_terms', 'applicant_confirmation', 'manager_name',
@@ -53,9 +54,10 @@ class Permit extends Model
         'hazards' => 'array',
         'ppe' => 'array',
         'man_power' => 'integer',
-        'hazards_other' => 'json',
-        'ppe_other' => 'json',
+        'hazards_other' => 'array',
+        'ppe_other' => 'array',
         'safety_checklists' => 'array',
+        'safety_checklists_other' => 'array',
         'agreed_to_terms' => 'boolean',
         'applicant_confirmation' => 'boolean',
         'signature_manager' => 'string',
@@ -131,6 +133,63 @@ class Permit extends Model
         ];
 
         return $colors[$this->status] ?? 'badge-secondary';
+    }
+
+    /**
+     * Accessor: Normalize ppe_other to associative array keyed by category slug
+     * Handles legacy numeric arrays, JSON strings, and raw arrays
+     */
+    public function getPpeOtherMapAttribute()
+    {
+        $raw = $this->attributes['ppe_other'] ?? null;
+        
+        // Decode if string
+        if (is_string($raw) && $raw !== '') {
+            $decoded = @json_decode($raw, true);
+            $arr = is_array($decoded) ? $decoded : [];
+        } elseif (is_array($raw)) {
+            $arr = $raw;
+        } else {
+            return []; // empty or null
+        }
+        
+        // If numeric array, map to category slugs by counting Lainnya occurrences in ppe
+        if ($arr && array_values($arr) === $arr) {
+            $ppeArr = $this->ppe ?? [];
+            $ppeList = self::getPpeList();
+            
+            // Build category slug list in order
+            $categorySlugs = [];
+            foreach ($ppeList as $category => $items) {
+                $categorySlugs[] = Str::slug($category);
+            }
+            
+            // Map numeric array to category slugs
+            $mapped = [];
+            foreach ($arr as $i => $v) {
+                $k = $categorySlugs[$i] ?? 'other_' . ($i+1);
+                $mapped[$k] = $v;
+            }
+            return $mapped;
+        }
+        
+        return $arr ?: [];
+    }
+
+    /**
+     * Accessor: Get hazards_other value
+     * Hazards only has 1 "Lainnya" item, so value is simple string
+     */
+    public function getHazardsOtherValueAttribute()
+    {
+        $raw = $this->attributes['hazards_other'] ?? null;
+        
+        if (is_array($raw)) {
+            return $raw[0] ?? '';
+        } elseif (is_string($raw)) {
+            return $raw;
+        }
+        return '';
     }
 
     /*

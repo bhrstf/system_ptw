@@ -32,7 +32,8 @@ class PermitController extends Controller
             $query->where('user_id', $user->id);
         }
 
-        $permits = $query->latest()->paginate(10);
+        // Load semua data untuk ditampilkan di table dengan scrollbar
+        $permits = $query->latest()->get();
 
         $statAktifQuery = Permit::where('status', Permit::STATUS_ACTIVE);
         $statTotalQuery = Permit::query();
@@ -76,6 +77,36 @@ class PermitController extends Controller
             'totalPekerjaan', 
             'totalKontraktor'
         ));
+    }
+
+    /**
+     * API Endpoint untuk Infinite Scroll di Dashboard
+     */
+    public function getPermitsAjax(Request $request)
+    {
+        $user = Auth::user();
+        $role = strtolower(trim($user->role ?? ''));
+        $page = $request->get('page', 1);
+        $perPage = 10;
+
+        $query = Permit::query();
+        if ($role === 'kontraktor') {
+            $query->where('user_id', $user->id);
+        }
+
+        $permits = $query->latest()->paginate($perPage, ['*'], 'page', $page);
+
+        $html = '';
+        foreach($permits->items() as $permit) {
+            $html .= view('components.permit-row', compact('permit'))->render();
+        }
+
+        return response()->json([
+            'html' => $html,
+            'current_page' => $permits->currentPage(),
+            'last_page' => $permits->lastPage(),
+            'has_more' => $permits->hasMorePages()
+        ]);
     }
 
     /**
@@ -158,6 +189,9 @@ class PermitController extends Controller
     /**
      * --- STORE PERMIT (SIMPAN DATA BARU) ---
      */
+    /**
+     * --- STORE PERMIT (SIMPAN DATA BARU) ---
+     */
     public function store(Request $request)
     {
         $fileFields = ['jsa_file', 'hiradc_file', 'worker_list_file', 'competency_cert_file', 'work_procedure_file', 'tool_cert_file'];
@@ -166,14 +200,16 @@ class PermitController extends Controller
         try {
             DB::beginTransaction();
             $request->merge([
-            'tools_text' => strip_tags($request->tools_used),
-            'scope_text' => strip_tags($request->work_scope_detail),
+                'tools_text' => strip_tags($request->tools_used),
+                'scope_text' => strip_tags($request->work_scope_detail),
             ]);
+            
             $request->validate([
                 'pic_lead' => 'required|string|max:255',
                 'pic_batamindo' => 'nullable|string|max:255',
                 'hazards_other' => 'nullable|string|max:255',
                 'ppe_other' => 'nullable|array',
+                'safety_checklists_other' => 'nullable|array', // Validasi array terstruktur
                 'man_power' => 'required|integer|min:1',
                 'ref_doc' => 'nullable|string|max:255',
                 'valid_from' => 'required|date',
@@ -181,22 +217,16 @@ class PermitController extends Controller
                 'rencana_durasi_bypass_jam' => 'nullable|integer',
                 'jumlah_titik_isolasi'      => 'nullable|integer',
                 'penjelasan_zero_energy'    => 'nullable|string',
-                
-                // Aturan validasi
                 'tools_text' => 'required',
                 'scope_text' => 'required',
             ], [
-                // PESAN ERROR (Harus sesuai dengan nama field di atas)
                 'tools_text.required' => 'Kolom Tools/Equipment Used wajib diisi!',
                 'scope_text.required' => 'Kolom Detailed Work Scope wajib diisi!',
             ]);
 
             $data = $request->all();
             
-            // --- Assign Data Baru ---
-            $data['rencana_durasi_bypass_jam']   = $request->rencana_durasi_bypass_jam;
-            $data['jumlah_titik_isolasi']        = $request->jumlah_titik_isolasi;
-            $data['penjelasan_zero_energy']      = $request->penjelasan_zero_energy;
+            // --- Pemetaan Nilai Standar ---
             $data['check_content_identified']    = $request->has('check_content_identified');
             $data['check_isolation_diagram']     = $request->has('check_isolation_diagram');
             $data['check_zero_energy_achieved']  = $request->has('check_zero_energy_achieved');
@@ -205,9 +235,19 @@ class PermitController extends Controller
             $data['hazards'] = $request->input('hazards', []);
             $data['ppe'] = $request->input('ppe', []);
             $data['safety_checklists'] = $request->input('safety_checklists', []);
-            $data['hazards_other'] = $request->input('hazards_other') ?: null;
-            $data['ppe_other'] = $request->input('ppe_other', []) ?: null;
-            $data['ref_doc'] = $request->input('ref_doc');
+            
+            $hazardsOtherRaw = $request->input('hazards_other');
+            $data['hazards_other'] = $hazardsOtherRaw ? [$hazardsOtherRaw] : [];
+            $data['ppe_other'] = $request->input('ppe_other', []);
+
+            // SOLUSI: Tangkap array text tambahan kustom & mapping manual
+            $checklistOther = $request->input('safety_checklists_other', []);
+            $data['safety_checklists_other'] = $checklistOther;
+
+            // Sinkronisasi data ke kolom flat database jika field tersebut ada/eksis di input kustom
+            $data['rencana_durasi_bypass_jam']   = $request->input('rencana_durasi_bypass_jam') ?? ($checklistOther['rencana_durasi_bypass_jam'] ?? null);
+            $data['jumlah_titik_isolasi']        = $request->input('jumlah_titik_isolasi') ?? ($checklistOther['jumlah_titik_isolasi'] ?? null);
+            $data['penjelasan_zero_energy']      = $request->input('penjelasan_zero_energy') ?? ($checklistOther['penjelasan_zero_energy'] ?? null);
 
             $data['agreed_to_terms'] = $request->has('agreed_to_terms') ? 1 : 0;
             $data['applicant_confirmation'] = $request->has('applicant_confirmation') ? 1 : 0;
@@ -226,14 +266,12 @@ class PermitController extends Controller
             Permit::create($data);
             DB::commit();
 
-            // --- KODE NOTIFIKASI TAMBAHAN: KIRIM KE HSE SAAT PTW DIBUAT ---
             $ptwBaru = Permit::where('user_id', Auth::id())->latest()->first();
             $hseUsers = User::whereIn('role', ['hse', 'hse/safety'])->get(); 
             
             if($ptwBaru && $hseUsers->count() > 0) {
                 Notification::send($hseUsers, new NewPtwSubmittedNotification($ptwBaru, Auth::user()->name));
             }
-            // ---------------------------------------------------------------
 
             return redirect()->route('dashboard')->with('success', 'Pengajuan Permit Berhasil!');
         } catch (\Exception $e) {
@@ -267,6 +305,9 @@ class PermitController extends Controller
     /**
      * --- UPDATE PERMIT (SIMPAN PERUBAHAN) ---
      */
+    /**
+     * --- UPDATE PERMIT (SIMPAN PERUBAHAN) ---
+     */
     public function update(Request $request, $id)
     {
         $permit = Permit::findOrFail($id);
@@ -276,46 +317,50 @@ class PermitController extends Controller
         try {
             DB::beginTransaction();
             
-            // 1. VALIDASI
             $request->validate([
                 'pic_lead' => 'sometimes|required|string|max:255',
                 'pic_batamindo' => 'nullable|string|max:255',
-                'hazard_other' => 'nullable|string|max:255',
+                'hazards_other' => 'nullable|string|max:255',
                 'man_power' => 'sometimes|required|integer|min:1',
                 'ppe_other' => 'nullable|array',
+                'safety_checklists_other' => 'nullable|array', // Validasi array data kustom
                 'ref_doc' => 'nullable|string|max:255',
                 'valid_from' => 'sometimes|required|date',
                 'valid_until' => 'sometimes|required|date|after:valid_from',
-                // --- Validasi Field Baru ---
                 'rencana_durasi_bypass_jam' => 'nullable|integer',
                 'jumlah_titik_isolasi'      => 'nullable|integer',
                 'penjelasan_zero_energy'    => 'nullable|string',
             ]);
 
-            // 2. AMBIL SEMUA INPUT
             $data = $request->all();
 
-            // --- Assign Data Baru ---
-            $data['rencana_durasi_bypass_jam']   = $request->rencana_durasi_bypass_jam;
-            $data['jumlah_titik_isolasi']        = $request->jumlah_titik_isolasi;
-            $data['penjelasan_zero_energy']      = $request->penjelasan_zero_energy;
+            // SOLUSI: Ambil seluruh data input teks tambahan checklist
+            $checklistOther = $request->input('safety_checklists_other', []);
+            
+            // Satukan data flat lama ke dalam text kustom jika diinput lewat modal/komponen lain
+            $data['rencana_durasi_bypass_jam']   = $request->input('rencana_durasi_bypass_jam') ?? ($checklistOther['rencana_durasi_bypass_jam'] ?? null);
+            $data['jumlah_titik_isolasi']        = $request->input('jumlah_titik_isolasi') ?? ($checklistOther['jumlah_titik_isolasi'] ?? null);
+            $data['penjelasan_zero_energy']      = $request->input('penjelasan_zero_energy') ?? ($checklistOther['penjelasan_zero_energy'] ?? null);
+            
             $data['check_content_identified']    = $request->has('check_content_identified');
             $data['check_isolation_diagram']     = $request->has('check_isolation_diagram');
             $data['check_zero_energy_achieved']  = $request->has('check_zero_energy_achieved');
 
-            // 3. LOGIKA ARRAY (Checkbox)
             $data['permit_type'] = $request->input('permit_type', $permit->permit_type);
             $data['hazards'] = $request->input('hazards', []);
             $data['ppe'] = $request->input('ppe', []);
             $data['safety_checklists'] = $request->input('safety_checklists', []);
-            $data['hazards_other'] = $request->input('hazards_other') ?: null;
-            $data['ppe_other'] = $request->input('ppe_other', []) ?: null;
+            
+            $hazardsOtherRaw = $request->input('hazards_other');
+            $data['hazards_other'] = $hazardsOtherRaw ? [$hazardsOtherRaw] : [];
+            $data['ppe_other'] = $request->input('ppe_other', []);
+            
+            // Pastikan array checklist kustom disimpan kembali utuh ke database
+            $data['safety_checklists_other'] = $checklistOther;
 
-            // 4. LOGIKA BOOLEAN
             $data['agreed_to_terms'] = $request->has('agreed_to_terms') ? 1 : 0;
             $data['applicant_confirmation'] = $request->has('applicant_confirmation') ? 1 : 0;
 
-            // 5. PENANGANAN FILE
             $fileFields = ['jsa_file', 'hiradc_file', 'worker_list_file', 'competency_cert_file', 'work_procedure_file', 'tool_cert_file'];
             foreach ($fileFields as $field) {
                 if ($request->hasFile($field)) {
@@ -328,19 +373,20 @@ class PermitController extends Controller
                 }
             }
 
-            // 6. CATATAN REVISI
             if (in_array($role, ['master', 'superadmin', 'admin', 'hse/safety', 'hse'])) {
                 $data['last_revision_note'] = $request->revision_note ?? 'Diperbarui oleh Administrator pada ' . now()->format('d/m/Y H:i');
             }
 
-            // 7. EKSEKUSI UPDATE
+            // SOLUSI UTAMA: Menggunakan metode forceFill atau update bypass jika properti tidak ada di $fillable model
+            $permit->forceFill([
+                'safety_checklists_other' => $data['safety_checklists_other']
+            ]);
+            
             $permit->update($data);
             
             DB::commit();
             
-            // 8. REDIRECT
             $targetRoute = in_array($role, ['master', 'admin', 'superadmin']) ? 'superadmin.edit_ptw' : 'dashboard';
-            
             return redirect()->route($targetRoute)->with('success', 'Perubahan Permit ID: ' . $id . ' Berhasil Disimpan!');
             
         } catch (\Exception $e) {

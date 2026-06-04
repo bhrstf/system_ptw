@@ -248,15 +248,18 @@
                         <div class="section-header text-danger mt-0">3. Identified Hazards</div>
                         <div class="box-fill flex-grow-1">
                             @php 
-                                $hazards = is_array($permit->hazards) ? $permit->hazards : (json_decode($permit->hazards, true) ?? []); 
-                                $hazards = array_unique(array_map('trim', $hazards)); 
+                                $hazards = is_array($permit->hazards) ? $permit->hazards : (is_string($permit->hazards) ? json_decode($permit->hazards, true) ?? [] : []);
+                                $hazards = array_unique(array_map('trim', (array)$hazards)); 
                                 
                                 $stdHazards = [];
                                 $otherHazardText = '';
                                 
                                 foreach($hazards as $hz) {
                                     if(in_array(strtolower($hz), ['lainnya', 'other', 'others'])) {
-                                        $rawOther = is_array($permit->hazard_other) ? $permit->hazard_other : (json_decode($permit->hazard_other ?? $permit->hazards_other, true) ?? [$permit->hazard_other ?? $permit->hazards_other]);
+                                        $rawOther = is_array($permit->hazard_other) ? $permit->hazard_other : (is_string($permit->hazard_other) ? json_decode($permit->hazard_other, true) ?? [] : []);
+                                        if(empty($rawOther) && isset($permit->hazards_other)) {
+                                            $rawOther = is_array($permit->hazards_other) ? $permit->hazards_other : (is_string($permit->hazards_other) ? json_decode($permit->hazards_other, true) ?? [] : []);
+                                        }
                                         $cleanOther = array_filter(array_map('trim', (array)$rawOther));
                                         $otherHazardText = !empty($cleanOther) ? implode(', ', array_unique($cleanOther)) : '';
                                     } else {

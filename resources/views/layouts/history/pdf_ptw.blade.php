@@ -33,9 +33,21 @@
     }
     $userAnswers = is_array($permit->safety_checklists) ? $permit->safety_checklists : json_decode($permit->safety_checklists, true) ?? [];
 
+    // Decode Hazards Other dan PPE Other agar bisa dibaca di halaman 2
+    $hazardsOtherRaw = $permit->hazards_other;
+    if (is_array($hazardsOtherRaw)) {
+        $hazardsOther = implode(', ', array_filter($hazardsOtherRaw));
+    } elseif (is_string($hazardsOtherRaw)) {
+        $decoded = json_decode($hazardsOtherRaw, true);
+        $hazardsOther = is_array($decoded) ? implode(', ', array_filter($decoded)) : ($hazardsOtherRaw ?? '');
+    } else {
+        $hazardsOther = '';
+    }
+    $ppeOther = is_array($permit->ppe_other) ? $permit->ppe_other : (is_string($permit->ppe_other) ? json_decode($permit->ppe_other, true) ?? [] : []);
+
     // BIKIN FORMAT NOMOR PTW YANG DINAMIS
     $year = $permit->created_at ? $permit->created_at->format('Y') : date('Y');
-    $dynamicPtwNumber = "PTW-OHSS-" . str_pad($permit->id, 3, '0', STR_PAD_LEFT) . "-" . $year;
+    $dynamicPtwNumber = $permit->ptw_number ?? ("PTW-OHSS-" . str_pad($permit->id, 3, '0', STR_PAD_LEFT) . "-" . $year);
 @endphp
 
 <!DOCTYPE html>
@@ -67,7 +79,6 @@
         .small { font-size: 13px; padding: 3px 5px; }
 
         /* Compact mode for dense two-table page to force fit into single sheet */
-        /* Compact scaling: keep font at 16 but slightly scale layout to fit one page */
         .compact { transform: scale(0.92); transform-origin: top left; }
         .compact .table-full { font-size: 16px; }
         .compact .table-full td, .compact .table-full th { padding: 2px 5px; }
@@ -100,7 +111,6 @@
 
         /* Aggressive compact layout for Pernyataan page to ensure single-sheet output */
         .compact-agreement { transform: scale(0.86); transform-origin: top left; }
-        /* Prevent page breaks inside this container */
         .page-container.compact-agreement { page-break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
         .compact-agreement .table-full td, .compact-agreement .table-full th { padding: 0px 2px; }
         .compact-agreement .section-blue { padding: 1px 0; font-size: 12px; }
@@ -115,6 +125,7 @@
         .compact-agreement .signature-box { height: 28px; }
         .compact-agreement .agreement-table { page-break-inside: avoid; break-inside: avoid; }
         .compact-agreement .table-full { page-break-inside: avoid; break-inside: avoid; }
+        
         /* Single-table layout for info+agreement+signatures to avoid page breaks */
         .agreement-full { width: 100%; border-collapse: collapse; margin-top: 8px; }
         .agreement-full td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
@@ -127,6 +138,27 @@
         /* CSS Khusus List Alat */
         .tools-list { margin: 0; padding-left: 20px; list-style-type: decimal; }
         .tools-list li { margin-bottom: 2px; }
+
+        /* Style Text Box Hasil Tambahan Lapangan */
+        .inline-answer { font-weight: bold; color: #000; margin-left: 5px; }
+        .blue-subtext { font-size: 14px; color: #0b63a7; font-weight: bold; margin-top: 2px; display: block; }
+        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        
+        /* Styling untuk Input Textbox di Safety Checklist */
+        .input-textbox-wrapper { margin-top: 4px; margin-left: 20px; padding: 6px 8px; background-color: #ffffff; border: 1px solid #ccc; border-radius: 2px; font-size: 14px; }
+        .input-textbox-label { font-weight: bold; color: #000; margin-bottom: 2px; display: block; font-size: 13px; }
+        .input-textbox-value { 
+            background-color: #ffffff; 
+            border: none; 
+            border-bottom: 1.5px solid #000; 
+            padding: 4px 6px; 
+            font-weight: bold; 
+            color: #1e1e1e; 
+            font-size: 13px; 
+            display: inline-block;
+            width: auto;
+            min-width: 150px;
+        }
+        .textbox-content { font-weight: bold; padding: 6px 0; color: #1e1e1e; font-size: 13px; word-break: break-word; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -163,7 +195,6 @@
             <tr>
                 <td class="bg-grey">Alat dan Peralatan yang digunakan</td>
                 <td>
-                    {{-- UPDATE ALAT MENJADI LIST BERURUT (ANGKA) --}}
                     @if(is_array($tools) && count($tools) > 0)
                         <ol class="tools-list">
                             @foreach($tools as $t)
@@ -171,7 +202,6 @@
                             @endforeach
                         </ol>
                     @elseif(!empty($permit->tools_used) && strpos($permit->tools_used, '<') !== false)
-                        {{-- Jika input memang html dari quill --}}
                         {!! $permit->tools_used !!}
                     @else
                         {{ $permit->tools_used ?? '-' }}
@@ -185,10 +215,8 @@
                 <td class="bg-grey">Deskripsi lingkup kerja (rinci)</td>
                 <td style="font-size: 16px;">
                     @if($detail && $detail !== strip_tags($detail))
-                        {{-- Jika user menyimpan HTML (rich text), render HTML apa adanya --}}
                         {!! $detail !!}
                     @else
-                        {{-- Jika plain text, escape lalu ubah newline menjadi <br> --}}
                         {!! nl2br(e($detail)) !!}
                     @endif
                 </td>
@@ -211,8 +239,16 @@
             @foreach($hazChunks as $row)
             <tr>
                 @foreach($row as $h)
-                    <td style="font-size: 16px;">{{ $h }}</td>
-                    <td class="check-cell">{{ in_array($h, $hazards) ? 'X' : '' }}</td>
+                    @php
+                        $isCheck = in_array($h, $hazards) || ($h === 'Lainnya:' && !empty($hazardsOther));
+                    @endphp
+                    <td style="font-size: 16px;">
+                        {{ $h }}
+                        @if($h === 'Lainnya:' && !empty($hazardsOther))
+                            <span class="inline-answer">: {{ $hazardsOther }}</span>
+                        @endif
+                    </td>
+                    <td class="check-cell">{{ $isCheck ? 'X' : '' }}</td>
                 @endforeach
             </tr>
             @endforeach
@@ -233,8 +269,16 @@
                         <td rowspan="{{ count($chunks) }}" class="check-cell">{{ array_intersect($items, $apd) ? 'X' : '' }}</td>
                     @endif
                     @foreach($chunk as $item)
-                        <td style="font-size: 16px;">{{ $item }}</td>
-                        <td class="check-cell">{{ in_array($item, $apd) ? 'X' : '' }}</td>
+                        @php
+                            $isPpeCheck = in_array($item, $apd);
+                        @endphp
+                        <td style="font-size: 16px;">
+                            {{ $item }}
+                            @if($item === 'Lainnya' && is_array($ppeOther) && isset($ppeOther[$category]) && !empty($ppeOther[$category]))
+                                <span class="inline-answer">: {{ $ppeOther[$category] }}</span>
+                            @endif
+                        </td>
+                        <td class="check-cell">{{ $isPpeCheck ? 'X' : '' }}</td>
                     @endforeach
                     @for($i = count($chunk); $i < 4; $i++) <td></td><td class="check-cell"></td> @endfor
                 </tr>
@@ -243,7 +287,7 @@
         </table>
     </div>
 
-    {{-- HALAMAN 3: SAFETY CHECKLIST --}}
+    {{-- HALAMAN 3: SAFETY CHECKLIST (UTUH TANPA POTONGAN ARRAY DATA) --}}
     <div class="page-container">
         <table class="table-full">
             <tr>
@@ -255,17 +299,89 @@
                 @foreach($masterChecklist[$type] as $subJudul => $questions)
                 <tr class="light-sub"><td colspan="3">{{ strtoupper($subJudul) }}</td></tr>
                     @foreach($questions as $q)
-                    <tr>
-                        <td class="check-cell" style="width: 40px;">{{ in_array($q, $userAnswers) ? 'X' : '' }}</td>
-                        <td colspan="2">{{ $q }}</td>
-                    </tr>
+                        @php
+                            $textPertanyaan = is_array($q) ? ($q['text'] ?? '') : $q;
+                            $hasInputTambahan = is_array($q) && isset($q['input_tambahan']);
+                            $inputTambahan = $hasInputTambahan ? $q['input_tambahan'] : null;
+                            
+                            $jawabanInput = null;
+                            $textboxHtml = '';
+                            $forceCheck = false;
+
+                            // PROSES INPUT TAMBAHAN - Ambil nilai dari database berdasarkan field name
+                            if ($hasInputTambahan && $inputTambahan) {
+                                $inputName = $inputTambahan['name'] ?? '';
+                                $inputLabel = $inputTambahan['label'] ?? '';
+                                $inputType = $inputTambahan['type'] ?? 'text';
+                                
+                                // Mapping direct ke field database berdasarkan input_name
+                                $fieldValue = null;
+
+                                // Jika label pertanyaan mengandung kata 'Lainnya', ambil semuanya dari checklist_other sebagai fallback
+                                if (stripos($textPertanyaan, 'lainnya') !== false) {
+                                    $checklistOtherData = is_array($permit->checklist_other) ? $permit->checklist_other : (json_decode($permit->checklist_other, true) ?? []);
+                                    if (!empty($checklistOtherData)) {
+                                        // Gabungkan semua nilai non-kosong menjadi satu string
+                                        $vals = array_filter($checklistOtherData, function($v){ return !empty($v); });
+                                        if (!empty($vals)) {
+                                            $fieldValue = implode(' / ', array_values($vals));
+                                        }
+                                    }
+                                }
+
+                                // Jika belum ditemukan, coba mapping berdasarkan nama field yang didefinisikan
+                                if (empty($fieldValue)) {
+                                    switch (strtolower($inputName)) {
+                                        case 'rencana_durasi_bypass_jam':
+                                            $fieldValue = $permit->rencana_durasi_bypass_jam ?? $permit->bypass_duration ?? null;
+                                            break;
+                                        case 'jumlah_titik_isolasi':
+                                            $fieldValue = $permit->jumlah_titik_isolasi ?? $permit->isolation_points_count ?? null;
+                                            break;
+                                        case 'penjelasan_zero_energy':
+                                            $fieldValue = $permit->penjelasan_zero_energy ?? $permit->zero_energy_explanation ?? null;
+                                            break;
+                                        case 'jelaskan':
+                                            $checklistOtherData = is_array($permit->checklist_other) ? $permit->checklist_other : (json_decode($permit->checklist_other, true) ?? []);
+                                            $fieldValue = $checklistOtherData['Jelaskan'] ?? $checklistOtherData['tangki'] ?? null;
+                                            break;
+                                        default:
+                                            if (isset($permit->{$inputName})) {
+                                                $fieldValue = $permit->{$inputName};
+                                            }
+                                    }
+                                }
+
+                                if (!empty($fieldValue)) {
+                                    $jawabanInput = $fieldValue;
+                                    $forceCheck = true;
+
+                                    // Generate HTML textbox dengan format rapi
+                                    $textboxHtml = '<div class="input-textbox-wrapper">';
+                                    $textboxHtml .= '<div class="input-textbox-label">' . htmlspecialchars($inputLabel) . '</div>';
+                                    $textboxHtml .= '<div class="textbox-content">' . nl2br(htmlspecialchars($fieldValue)) . '</div>';
+                                    $textboxHtml .= '</div>';
+                                }
+                            }
+
+                            $isRowChecked = $forceCheck ? true : in_array($textPertanyaan, $userAnswers);
+                        @endphp
+                        <tr>
+                            <td class="check-cell" style="width: 40px;">{{ $isRowChecked ? 'X' : '' }}</td>
+                            <td colspan="2">
+                                {!! $textPertanyaan !!}
+                                @if(!empty($textboxHtml))
+                                    {!! $textboxHtml !!}
+                                @endif
+                            </td>
+                        </tr>
                     @endforeach
                 @endforeach
             @endif
         </table>
     </div>
 
-    {{-- HALAMAN 4: SATU KOTAK UTUH (Pernyataan Lengkap & Satu Halaman) --}}
+    {{-- HALAMAN 4: PERNYATAAN DAN PERSETUJUAN --}}
     <div class="page-container compact-agreement" style="page-break-after: always; page-break-inside: avoid;">
         <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000;">
             {{-- I. INFORMASI LAINNYA --}}
@@ -341,7 +457,7 @@
                         <tr>
                             <td style="border-right: 2px solid #000; height: 80px; text-align: center; vertical-align: middle;">
                                 @if($permit->signature_manager)
-                                        <img src="{{ $permit->signature_manager }}" style="height: 40px;">
+                                    <img src="{{ $permit->signature_manager }}" style="height: 40px;">
                                 @endif
                             </td>
                             <td style="border-left: 2px solid #000; height: 80px; text-align: center; vertical-align: middle;">
