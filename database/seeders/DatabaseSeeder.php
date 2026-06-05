@@ -13,19 +13,29 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Kita pakai updateOrCreate supaya kalau emailnya sudah ada, 
-        // datanya cuma di-update (nggak bikin error duplicate).
+        $email = env('SUPER_ADMIN_EMAIL');
+        $password = env('SUPER_ADMIN_PASSWORD');
+
+        // Alarm jika env di Railway lupa belum terisi
+        if (!$email || !$password) {
+            $this->command->error("Gagal: SUPER_ADMIN_EMAIL atau SUPER_ADMIN_PASSWORD di environment variable belum diisi!");
+            return;
+        }
+
+        // Eksekusi pembuatan Master Admin
         User::updateOrCreate(
             [
-                'email' => env('SUPER_ADMIN_EMAIL'), 
+                'email' => $email, 
             ],
             [
-                'name'              => 'Super Admin Minerva',
-                'username'          => 'NPK001', 
-                'password'          => Hash::make(env('SUPER_ADMIN_PASSWORD')), 
-                'role'              => 'Superadmin', 
+                'name'              => 'Master Account',
+                'username'          => 'masteradmin', 
+                'password'          => Hash::make($password), 
+                'role'              => 'master', // Menyesuaikan kebutuhan fitur 'edit semua' kamu
                 'email_verified_at' => now(), 
             ]
         );
+
+        $this->command->info("Master Account dengan email {$email} berhasil didaftarkan ke database.");
     }
 }

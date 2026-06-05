@@ -98,7 +98,7 @@
                 <div>
                     <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block ml-1">Daftar Sebagai</label>
                     <select name="role" x-model="role" class="w-full px-5 py-4 rounded-2xl input-modern text-sm font-semibold text-gray-700 appearance-none cursor-pointer">
-                        <option value="HSE">HSE / Safety Batamindo</option>
+                        <option value="hse/safety">HSE / Safety Batamindo</option>
                         <option value="Kontraktor">Kontraktor</option>
                     </select>
                 </div>
