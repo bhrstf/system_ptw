@@ -1,10 +1,12 @@
 @php
+    use Illuminate\Support\Str;
+    
     $allTypes = is_array($permit->permit_type) ? $permit->permit_type : [$permit->permit_type];
     $masterChecklist = App\Models\Permit::getMasterChecklist();
     $hazards = is_array($permit->hazards) ? $permit->hazards : json_decode($permit->hazards, true) ?? [];
     $apd = is_array($permit->ppe) ? $permit->ppe : json_decode($permit->ppe, true) ?? [];
     
-    // Parse tools_used which may be stored as JSON array, plain string, or HTML from rich-editor (Quill)
+    // Parse tools_used
     if (is_array($permit->tools_used)) {
         $tools = $permit->tools_used;
     } else {
@@ -13,7 +15,6 @@
             $tools = $decodedTools;
         } else {
             $rawTools = $permit->tools_used ?? '';
-            // If HTML list (Quill), extract <li> contents
             if (strpos($rawTools, '<') !== false) {
                 preg_match_all('/<li[^>]*>(.*?)<\/li>/si', $rawTools, $matches);
                 if (!empty($matches[1])) {
@@ -33,19 +34,35 @@
     }
     $userAnswers = is_array($permit->safety_checklists) ? $permit->safety_checklists : json_decode($permit->safety_checklists, true) ?? [];
 
-    // Decode Hazards Other dan PPE Other agar bisa dibaca di halaman 2
-    $hazardsOtherRaw = $permit->hazards_other;
-    if (is_array($hazardsOtherRaw)) {
-        $hazardsOther = implode(', ', array_filter($hazardsOtherRaw));
-    } elseif (is_string($hazardsOtherRaw)) {
-        $decoded = json_decode($hazardsOtherRaw, true);
-        $hazardsOther = is_array($decoded) ? implode(', ', array_filter($decoded)) : ($hazardsOtherRaw ?? '');
-    } else {
-        $hazardsOther = '';
+    // Decode Hazards Other (Sumber Bahaya Lainnya)
+    $hazardsOther = '';
+    if (!empty($permit->hazards_other)) {
+        if (is_array($permit->hazards_other)) {
+            $hazardsOther = implode(', ', array_filter($permit->hazards_other));
+        } elseif (is_string($permit->hazards_other)) {
+            $decodedHaz = json_decode($permit->hazards_other, true);
+            if (is_array($decodedHaz)) {
+                $hazardsOther = implode(', ', array_filter($decodedHaz));
+            } else {
+                $hazardsOther = trim($permit->hazards_other);
+            }
+        }
     }
-    $ppeOther = is_array($permit->ppe_other) ? $permit->ppe_other : (is_string($permit->ppe_other) ? json_decode($permit->ppe_other, true) ?? [] : []);
 
-    // BIKIN FORMAT NOMOR PTW YANG DINAMIS
+    // Decode PPE Other (APD Lainnya per Kategori)
+    $ppeOther = [];
+    if (!empty($permit->ppe_other)) {
+        if (is_array($permit->ppe_other)) {
+            $ppeOther = $permit->ppe_other;
+        } elseif (is_string($permit->ppe_other)) {
+            $ppeOther = json_decode($permit->ppe_other, true) ?? [];
+            if (!is_array($ppeOther)) {
+                $ppeOther = [$permit->ppe_other];
+            }
+        }
+    }
+
+    // Format Nomor PTW Dinamis
     $year = $permit->created_at ? $permit->created_at->format('Y') : date('Y');
     $dynamicPtwNumber = $permit->ptw_number ?? ("PTW-OHSS-" . str_pad($permit->id, 3, '0', STR_PAD_LEFT) . "-" . $year);
 @endphp
@@ -54,111 +71,41 @@
 <html>
 <head>
     <style>
-        /* Gunakan landscape dan margin lebih kecil agar muat seperti referensi */
-        @page { size: A4 landscape; margin: 14mm; }
-        /* Set global font to 16 as requested */
-        body { font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.15; color: #000; margin: 0; }
+        @page { size: A4 landscape; margin: 12mm; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.15; color: #000; margin: 0; }
 
-        .page-container { page-break-after: always; width: 100%; }
-        .table-full { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; font-size: 16px; }
-        .table-full td, .table-full th { border: 1px solid #000; padding: 3px 6px; vertical-align: middle; word-wrap: break-word; }
+        .page-container { page-break-after: always; page-break-inside: avoid; width: 100%; box-sizing: border-box; }
+        .page-container:last-child { page-break-after: avoid; }
 
-        /* Header dan section */
+        .table-full { width: 100%; border-collapse: collapse; margin-bottom: 5px; table-layout: fixed; font-size: 14px; }
+        .table-full td, .table-full th { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; word-wrap: break-word; }
+
         .header-main { text-align: center; font-weight: bold; font-size: 16px; vertical-align: middle !important; }
-        .section-blue { text-align: center; font-weight: bold; font-size: 16px; padding: 6px 0; }
-        .section-blue-theme { background-color: #0b63a7; color: #fff; }
+        .section-blue { text-align: center; font-weight: bold; font-size: 15px; padding: 5px 0; }
 
         .bg-grey { background-color: #f2f2f2; font-weight: bold; }
-        .check-cell { width: 34px; text-align: center; font-weight: bold; font-size: 16px; }
-        .signature-box { height: 70px; text-align: center; vertical-align: middle !important; }
+        .check-cell { width: 34px; text-align: center; font-weight: bold; font-size: 14px; }
 
-        img.logo { max-width: 140px; height: auto; }
-        .no-break { page-break-inside: avoid; }
-
-        /* Smaller cells for dense tables */
-        .small { font-size: 13px; padding: 3px 5px; }
-
-        /* Compact mode for dense two-table page to force fit into single sheet */
-        .compact { transform: scale(0.92); transform-origin: top left; }
-        .compact .table-full { font-size: 16px; }
-        .compact .table-full td, .compact .table-full th { padding: 2px 5px; }
-        .compact .section-blue { font-size: 16px; padding: 3px 0; }
-        .compact tr, .compact td, .compact th { page-break-inside: avoid; }
-
-        /* Light grey subheading rows */
-        .light-sub { background: #eeeeee; font-size: 14px; font-weight: bold; text-align: center; }
-
-        /* Styling Tabel Persetujuan mirip Gambar 2 */
-        .agreement-table { width: 100%; border-collapse: collapse; }
-        .agreement-table td { border: 1px solid #000; padding: 10px; }
-
-        .col-statement { width: 80%; text-align: center; vertical-align: middle !important; }
-        .col-side { width: 20%; padding: 0 !important; }
-
-        /* Tabel kecil di dalam kolom kanan agar Status & Setuju bertumpuk */
-        .side-inner-table { width: 100%; border-collapse: collapse; height: 100%; }
-        .side-inner-table td { 
-            border: none !important; 
-            border-bottom: 1px solid #000 !important; 
-            text-align: center; 
-            padding: 8px; 
-            font-size: 14px;
-        }
-        .side-inner-table tr:last-child td { border-bottom: none !important; }
-
-        .statement-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; display: block; }
-        .statement-body { font-size: 14px; line-height: 1.4; color: #333; }
-
-        /* Aggressive compact layout for Pernyataan page to ensure single-sheet output */
-        .compact-agreement { transform: scale(0.86); transform-origin: top left; }
-        .page-container.compact-agreement { page-break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
-        .compact-agreement .table-full td, .compact-agreement .table-full th { padding: 0px 2px; }
-        .compact-agreement .section-blue { padding: 1px 0; font-size: 12px; }
-        .compact-agreement .agreement-table { font-size: 12px; }
-        .compact-agreement .col-statement { width: 82%; }
-        .compact-agreement .col-side { width: 18%; }
-        .compact-agreement .side-inner-table td { padding: 2px 4px; font-size: 11px; }
-        .compact-agreement .side-inner-table tr:first-child td { font-size: 12px; padding: 4px 4px; }
-        .compact-agreement .side-inner-table tr:last-child td { padding: 6px 4px; }
-        .compact-agreement .statement-body { font-size: 12px; line-height: 1.05; }
-        .accept { color: #1e9b28; font-weight: 700; font-size: 12px; }
-        .compact-agreement .signature-box { height: 28px; }
-        .compact-agreement .agreement-table { page-break-inside: avoid; break-inside: avoid; }
-        .compact-agreement .table-full { page-break-inside: avoid; break-inside: avoid; }
-        
-        /* Single-table layout for info+agreement+signatures to avoid page breaks */
-        .agreement-full { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        .agreement-full td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
-        .agreement-full .info-left { width: 70%; }
-        .agreement-full .info-right { width: 30%; }
-        .agreement-full .no-border-top { border-top: none; }
-        .agreement-full .sign-name { font-weight: bold; text-align: center; }
-        .agreement-full { page-break-inside: avoid; break-inside: avoid; }
-        
-        /* CSS Khusus List Alat */
         .tools-list { margin: 0; padding-left: 20px; list-style-type: decimal; }
-        .tools-list li { margin-bottom: 2px; }
+        .tools-list li { margin-bottom: 1px; }
 
-        /* Style Text Box Hasil Tambahan Lapangan */
-        .inline-answer { font-weight: bold; color: #000; margin-left: 5px; }
-        .blue-subtext { font-size: 14px; color: #0b63a7; font-weight: bold; margin-top: 2px; display: block; }
-        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        php artisan tinker --execute="echo json_encode(App\\Models\\Permit::find(YOUR_ID)->toArray());"        
-        /* Styling untuk Input Textbox di Safety Checklist */
-        .input-textbox-wrapper { margin-top: 4px; margin-left: 20px; padding: 6px 8px; background-color: #ffffff; border: 1px solid #ccc; border-radius: 2px; font-size: 14px; }
-        .input-textbox-label { font-weight: bold; color: #000; margin-bottom: 2px; display: block; font-size: 13px; }
-        .input-textbox-value { 
-            background-color: #ffffff; 
-            border: none; 
-            border-bottom: 1.5px solid #000; 
-            padding: 4px 6px; 
-            font-weight: bold; 
-            color: #1e1e1e; 
-            font-size: 13px; 
-            display: inline-block;
-            width: auto;
-            min-width: 150px;
-        }
-        .textbox-content { font-weight: bold; padding: 6px 0; color: #1e1e1e; font-size: 13px; word-break: break-word; line-height: 1.4; }
+        .light-sub { background: #eeeeee; font-size: 13px; font-weight: bold; text-align: center; }
+        
+        /* Style text jawaban dinamis lainnya */
+        .inline-answer { font-weight: normal; color: #000; margin-left: 4px; }
+        
+        .input-textbox-wrapper { margin-top: 4px; margin-left: 20px; padding: 5px 8px; background-color: #f9f9f9; border: 1px solid #bbb; border-radius: 2px; width: 90%; }
+        .input-textbox-label { font-weight: bold; color: #333; margin-bottom: 2px; display: block; font-size: 11px; text-transform: uppercase; }
+        .textbox-content { font-weight: normal; color: #000; font-size: 12px; word-break: break-word; line-height: 1.3; }
+
+        .compact-h2 .table-full { font-size: 13px; margin-bottom: 10px; }
+        .compact-h2 .table-full td { padding: 3px 5px; }
+        .compact-h2 .check-cell { width: 28px; }
+
+        .compact-h4 .table-full td { padding: 8px 10px; }
+        .inner-status-table { width: 100%; border-collapse: collapse; }
+        .inner-status-table td { border: none !important; text-align: center; padding: 5px !important; }
+        .inner-status-table tr:first-child td { border-bottom: 1px solid #000 !important; font-weight: bold; background-color: #f2f2f2; }
     </style>
 </head>
 <body>
@@ -170,13 +117,13 @@
     <div class="page-container">
         <table class="table-full">
             <tr>
-                <td width="200px" style="text-align: center; background: #fff;">
-                    <img src="{{ public_path('images/logo-batamindo.png') }}" style="width: 250px;">
+                <td width="220px" style="text-align: center; background: #fff;">
+                    <img src="{{ public_path('images/logo-batamindo.png') }}" style="width: 200px;">
                 </td>
                 <td class="header-main" style="background-color: {{ $theme['bg'] }}; color: {{ $theme['text'] }};">
                     PERMIT TO WORK - {{ strtoupper($type) }}
                     <br>
-                    <span style="font-size: 14px;">{{ $dynamicPtwNumber }}</span>
+                    <span style="font-size: 13px; font-weight: normal;">{{ $dynamicPtwNumber }}</span>
                 </td>
             </tr>
             <tr>
@@ -184,7 +131,7 @@
                     Informasi Umum (Diisi dan dilengkapi oleh Permit Applicant)
                 </td>
             </tr>
-            <tr><td class="bg-grey">Permit to Work Number</td><td>{{ $dynamicPtwNumber }}</td></tr>
+            <tr><td class="bg-grey" width="30%">Permit to Work Number</td><td>{{ $dynamicPtwNumber }}</td></tr>
             <tr><td class="bg-grey">Berlaku Mulai</td><td>{{ optional($permit->valid_from)->format('m/d/Y h:i A') }}</td></tr>
             <tr><td class="bg-grey">Berlaku Sampai</td><td>{{ optional($permit->valid_until)->format('m/d/Y h:i A') }}</td></tr>
             <tr><td class="bg-grey">Nama Permit Applicant</td><td>{{ $permit->applicant_name }}</td></tr>
@@ -213,7 +160,7 @@
             @php $detail = $permit->work_scope_detail ?? ''; @endphp
             <tr>
                 <td class="bg-grey">Deskripsi lingkup kerja (rinci)</td>
-                <td style="font-size: 16px;">
+                <td>
                     @if($detail && $detail !== strip_tags($detail))
                         {!! $detail !!}
                     @else
@@ -225,7 +172,7 @@
     </div>
 
     {{-- HALAMAN 2: SUMBER BAHAYA & APD --}}
-    <div class="page-container compact">
+    <div class="page-container compact-h2">
         <table class="table-full">
             <tr>
                 <td colspan="10" class="section-blue" style="background-color: {{ $theme['bg'] }}; color: {{ $theme['text'] }};">
@@ -240,11 +187,17 @@
             <tr>
                 @foreach($row as $h)
                     @php
-                        $isCheck = in_array($h, $hazards) || ($h === 'Lainnya:' && !empty($hazardsOther));
+                        $cleanH = trim(str_replace(':', '', $h));
+                        // Checkbox khusus Lainnya di Sumber Bahaya hanya aktif jika teks hazardsOther tidak kosong
+                        if ($cleanH === 'Lainnya') {
+                            $isCheck = !empty($hazardsOther);
+                        } else {
+                            $isCheck = in_array($h, $hazards) || in_array($cleanH, $hazards);
+                        }
                     @endphp
-                    <td style="font-size: 16px;">
+                    <td>
                         {{ $h }}
-                        @if($h === 'Lainnya:' && !empty($hazardsOther))
+                        @if(($cleanH === 'Lainnya' || $h === 'Lainnya:') && !empty($hazardsOther))
                             <span class="inline-answer">: {{ $hazardsOther }}</span>
                         @endif
                     </td>
@@ -265,17 +218,44 @@
                 @foreach($chunks as $idx => $chunk)
                 <tr>
                     @if($idx == 0)
-                        <td rowspan="{{ count($chunks) }}" class="bg-grey" style="width: 120px;">{{ $category }}</td>
-                        <td rowspan="{{ count($chunks) }}" class="check-cell">{{ array_intersect($items, $apd) ? 'X' : '' }}</td>
+                        <td rowspan="{{ count($chunks) }}" class="bg-grey" style="width: 140px;">{{ $category }}</td>
+                        <td rowspan="{{ count($chunks) }}" class="check-cell" style="width: 34px;">{{ array_intersect($items, $apd) ? 'X' : '' }}</td>
                     @endif
                     @foreach($chunk as $item)
                         @php
-                            $isPpeCheck = in_array($item, $apd);
+                            $cleanItem = trim($item);
+                            
+                            // Ambil nilai text tambahan dinamis dari ppe_other berdasarkan kategori saat ini
+                            $currentPpeOtherValue = '';
+                            if (!empty($ppeOther)) {
+                                if (isset($ppeOther[$category])) {
+                                    $currentPpeOtherValue = $ppeOther[$category];
+                                } else {
+                                    foreach($ppeOther as $k => $v) {
+                                        if (strtolower(trim($k)) === strtolower(trim($category))) {
+                                            $currentPpeOtherValue = $v;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if (is_array($currentPpeOtherValue)) {
+                                $currentPpeOtherValue = implode(', ', array_filter($currentPpeOtherValue));
+                            }
+                            $currentPpeOtherValue = trim($currentPpeOtherValue);
+
+                            // KUNCI SOLUSI: Jika nama item adalah 'Lainnya', 
+                            // dia HANYA boleh dicentang X jika text box kategori tersebut memang ada isinya di database.
+                            if ($cleanItem === 'Lainnya' || $cleanItem === 'Lain-lain') {
+                                $isPpeCheck = !empty($currentPpeOtherValue);
+                            } else {
+                                $isPpeCheck = in_array($item, $apd) || in_array($cleanItem, $apd);
+                            }
                         @endphp
-                        <td style="font-size: 16px;">
+                        <td>
                             {{ $item }}
-                            @if($item === 'Lainnya' && is_array($ppeOther) && isset($ppeOther[$category]) && !empty($ppeOther[$category]))
-                                <span class="inline-answer">: {{ $ppeOther[$category] }}</span>
+                            @if(($cleanItem === 'Lainnya' || $cleanItem === 'Lain-lain') && !empty($currentPpeOtherValue))
+                                <span class="inline-answer">: {{ $currentPpeOtherValue }}</span>
                             @endif
                         </td>
                         <td class="check-cell">{{ $isPpeCheck ? 'X' : '' }}</td>
@@ -287,9 +267,9 @@
         </table>
     </div>
 
-    {{-- HALAMAN 3: SAFETY CHECKLIST (UTUH TANPA POTONGAN ARRAY DATA) --}}
+    {{-- HALAMAN 3: SAFETY CHECKLIST --}}
     <div class="page-container">
-        <table class="table-full">
+        <table class="table-full" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <tr>
                 <td colspan="3" class="section-blue" style="background-color: {{ $theme['bg'] }}; color: {{ $theme['text'] }};">
                     Safety Checklist: {{ strtoupper($type) }}
@@ -300,104 +280,157 @@
                 <tr class="light-sub"><td colspan="3">{{ strtoupper($subJudul) }}</td></tr>
                     @foreach($questions as $q)
                         @php
+                            // 1. Ambil teks asli pertanyaan dan bersihkan untuk pencarian data
                             $textPertanyaan = is_array($q) ? ($q['text'] ?? '') : $q;
+                            
+                            $cleanText = str_replace('&nbsp;', ' ', strip_tags($textPertanyaan));
+                            $cleanText = trim(preg_replace('/\s+/', ' ', $cleanText)); 
+                            $lowerText = strtolower($cleanText);
+
                             $hasInputTambahan = is_array($q) && isset($q['input_tambahan']);
                             $inputTambahan = $hasInputTambahan ? $q['input_tambahan'] : null;
                             
-                            $jawabanInput = null;
-                            $textboxHtml = '';
-                            $forceCheck = false;
+                            $fieldValue = null;
+                            $inputLabel = 'Keterangan';
 
-                            // PROSES INPUT TAMBAHAN - Ambil nilai dari database berdasarkan field name
+                            // Ambil data dari safety_checklists_other
+                            $checklistOtherData = [];
+                            if (!empty($permit->safety_checklists_other)) {
+                                $checklistOtherData = is_array($permit->safety_checklists_other) ? $permit->safety_checklists_other : (json_decode($permit->safety_checklists_other, true) ?? []);
+                            }
+
+                            // Cek jawaban user dengan teks yang sudah dibersihkan
+                            $isRowChecked = false;
+                            if (isset($userAnswers) && is_array($userAnswers)) {
+                                foreach ($userAnswers as $ans) {
+                                    $cleanAns = str_replace('&nbsp;', ' ', strip_tags($ans));
+                                    $cleanAns = trim(preg_replace('/\s+/', ' ', $cleanAns));
+                                    if (strtolower($cleanAns) === $lowerText) {
+                                        $isRowChecked = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Proses pencarian data jika memiliki input tambahan
                             if ($hasInputTambahan && $inputTambahan) {
                                 $inputName = $inputTambahan['name'] ?? '';
-                                $inputLabel = $inputTambahan['label'] ?? '';
-                                $inputType = $inputTambahan['type'] ?? 'text';
-                                
-                                // Mapping direct ke field database berdasarkan input_name
-                                $fieldValue = null;
+                                $inputLabel = $inputTambahan['label'] ?? 'Keterangan';
 
-                                // Jika label pertanyaan mengandung kata 'Lainnya', ambil semuanya dari checklist_other sebagai fallback
-                                if (stripos($textPertanyaan, 'lainnya') !== false) {
-                                    $checklistOtherData = is_array($permit->checklist_other) ? $permit->checklist_other : (json_decode($permit->checklist_other, true) ?? []);
-                                    if (!empty($checklistOtherData)) {
-                                        // Gabungkan semua nilai non-kosong menjadi satu string
-                                        $vals = array_filter($checklistOtherData, function($v){ return !empty($v); });
-                                        if (!empty($vals)) {
-                                            $fieldValue = implode(' / ', array_values($vals));
+                                if (!empty($checklistOtherData) && is_array($checklistOtherData)) {
+                                    if (isset($checklistOtherData[$inputName]) && !empty($checklistOtherData[$inputName])) {
+                                        $fieldValue = $checklistOtherData[$inputName];
+                                    } elseif (isset($checklistOtherData[$inputLabel]) && !empty($checklistOtherData[$inputLabel])) {
+                                        $fieldValue = $checklistOtherData[$inputLabel];
+                                    } else {
+                                        foreach ($checklistOtherData as $key => $val) {
+                                            if (empty($val)) continue;
+                                            $lowKey = strtolower($key);
+
+                                            if (strpos($lowerText, 'tangki') !== false || strpos($lowerText, 'peralatan telah diidentifikasi') !== false) {
+                                                if (strpos($lowKey, 'tangki') !== false || strpos($lowKey, 'isi') !== false || strpos($lowKey, 'sebelumnya') !== false) {
+                                                    $fieldValue = $val;
+                                                    break;
+                                                }
+                                            }
                                         }
                                     }
                                 }
 
-                                // Jika belum ditemukan, coba mapping berdasarkan nama field yang didefinisikan
+                                // Fallback database root attributes
                                 if (empty($fieldValue)) {
                                     switch (strtolower($inputName)) {
                                         case 'rencana_durasi_bypass_jam':
+                                        case 'bypass_duration':
                                             $fieldValue = $permit->rencana_durasi_bypass_jam ?? $permit->bypass_duration ?? null;
                                             break;
                                         case 'jumlah_titik_isolasi':
+                                        case 'isolation_points_count':
                                             $fieldValue = $permit->jumlah_titik_isolasi ?? $permit->isolation_points_count ?? null;
                                             break;
                                         case 'penjelasan_zero_energy':
+                                        case 'zero_energy_explanation':
                                             $fieldValue = $permit->penjelasan_zero_energy ?? $permit->zero_energy_explanation ?? null;
                                             break;
-                                        case 'jelaskan':
-                                            $checklistOtherData = is_array($permit->checklist_other) ? $permit->checklist_other : (json_decode($permit->checklist_other, true) ?? []);
-                                            $fieldValue = $checklistOtherData['Jelaskan'] ?? $checklistOtherData['tangki'] ?? null;
-                                            break;
                                         default:
-                                            if (isset($permit->{$inputName})) {
+                                            if (isset($permit->{$inputName}) && !empty($permit->{$inputName})) {
                                                 $fieldValue = $permit->{$inputName};
                                             }
                                     }
                                 }
-
-                                if (!empty($fieldValue)) {
-                                    $jawabanInput = $fieldValue;
-                                    $forceCheck = true;
-
-                                    // Generate HTML textbox dengan format rapi
-                                    $textboxHtml = '<div class="input-textbox-wrapper">';
-                                    $textboxHtml .= '<div class="input-textbox-label">' . htmlspecialchars($inputLabel) . '</div>';
-                                    $textboxHtml .= '<div class="textbox-content">' . nl2br(htmlspecialchars($fieldValue)) . '</div>';
-                                    $textboxHtml .= '</div>';
+                            } elseif (stripos($lowerText, 'lainnya') !== false || stripos($lowerText, 'lain-lain') !== false) {
+                                $subJudulSlug = Str::slug($subJudul);
+                                if (isset($checklistOtherData[$subJudulSlug]) && !empty($checklistOtherData[$subJudulSlug])) {
+                                    $fieldValue = $checklistOtherData[$subJudulSlug];
+                                    $inputLabel = 'Lainnya';
+                                } else {
+                                    foreach ($checklistOtherData as $key => $val) {
+                                        if (empty($val)) continue;
+                                        $lowKey = strtolower($key);
+                                        if (strpos($lowKey, 'lain') !== false && (strpos($lowKey, strtolower($type)) !== false || count($checklistOtherData) == 1)) {
+                                            $fieldValue = $val;
+                                            $inputLabel = 'Lainnya';
+                                            break;
+                                        }
+                                    }
                                 }
                             }
 
-                            $isRowChecked = $forceCheck ? true : in_array($textPertanyaan, $userAnswers);
+                            if (stripos($lowerText, 'lainnya') !== false || stripos($lowerText, 'lain-lain') !== false) {
+                                if (!empty($fieldValue)) {
+                                    $isRowChecked = true;
+                                }
+                            }
                         @endphp
-                        <tr>
-                            <td class="check-cell" style="width: 40px;">{{ $isRowChecked ? 'X' : '' }}</td>
-                            <td colspan="2">
-                                {!! $textPertanyaan !!}
-                                @if(!empty($textboxHtml))
-                                    {!! $textboxHtml !!}
-                                @endif
-                            </td>
-                        </tr>
+                        
+                        {{-- JIKA ADA DATA KETERANGAN / TEXTBOX --}}
+                        @if(!empty($fieldValue))
+                            @php $isRowChecked = true; @endphp
+                            <tr>
+                                <td class="check-cell" rowspan="2" style="width: 40px; text-align: center; vertical-align: middle; padding: 8px 4px; font-size: 13px; border-bottom: 1px solid #000;">X</td>
+                                
+                                <td colspan="2" style="padding: 8px 8px; line-height: 1.4; vertical-align: middle; font-size: 13px; color: #000; border-bottom: none;">
+                                    {!! $textPertanyaan !!}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="padding: 6px 8px; font-size: 13px; color: #000; font-weight: normal; background-color: #fff; border-top: 1px solid #000; border-bottom: 1px solid #000;">
+                                    {{ $inputLabel }} : {{ $fieldValue }}
+                                </td>
+                            </tr>
+                        @else
+                            {{-- JIKA TIDAK ADA KETERANGAN (BARIS BIASA KONDISI NORMAL) --}}
+                            <tr>
+                                <td class="check-cell" style="width: 40px; text-align: center; vertical-align: middle; padding: 8px 4px; font-size: 13px;">{{ $isRowChecked ? 'X' : '' }}</td>
+                                <td colspan="2" style="padding: 8px 8px; line-height: 1.4; vertical-align: middle; font-size: 13px; color: #000;">
+                                    {!! $textPertanyaan !!}
+                                </td>
+                            </tr>
+                        @endif
+
                     @endforeach
                 @endforeach
             @endif
         </table>
     </div>
 
-    {{-- HALAMAN 4: PERNYATAAN DAN PERSETUJUAN --}}
-    <div class="page-container compact-agreement" style="page-break-after: always; page-break-inside: avoid;">
-        <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000;">
+    {{-- HALAMAN 4: INFORMASI LAINNYA & PERNYATAAN DAN PERSETUJUAN --}}
+    <div class="page-container compact-h4">
+        <table class="table-full" style="border: 1.5px solid #000;">
             {{-- I. INFORMASI LAINNYA --}}
             <tr>
-                <td colspan="3" class="section-blue" style="background-color: {{ $theme['bg'] }}; color: {{ $theme['text'] }}; border-bottom: 1px solid #000; text-align: center; font-weight: bold; padding: 10px; font-size: 16px;">
+                <td colspan="3" class="section-blue" style="background-color: {{ $theme['bg'] }}; color: {{ $theme['text'] }}; border-bottom: 1px solid #000;">
                     Informasi Lainnya
                 </td>
             </tr>
             <tr>
-                <td width="30%" style="border: 1px solid #000; padding: 15px; font-weight: bold; background-color: #f2f2f2;">Instruksi Tambahan</td>
-                <td colspan="2" style="border: 1px solid #000; padding: 10px; min-height: 60px; vertical-align: top;">
+                <td width="25%" style="border: 1px solid #000; padding: 10px; font-weight: bold; background-color: #f2f2f2;">Instruksi Tambahan</td>
+                <td colspan="2" style="border: 1px solid #000; padding: 10px; min-height: 40px; vertical-align: top;">
                     {{ $permit->additional_instructions ?? '-' }}
                 </td>
             </tr>
             <tr>
-                <td style="border: 1px solid #000; padding: 15px; font-weight: bold; background-color: #f2f2f2;">Nama Personil K3 sebagai Perwakilan K3 perusahaan yang ditunjuk oleh Permit Applicant</td>
+                <td style="border: 1px solid #000; padding: 10px; font-weight: bold; background-color: #f2f2f2;">Nama Personil K3 sebagai Perwakilan K3 perusahaan yang ditunjuk oleh Permit Applicant</td>
                 <td colspan="2" style="border: 1px solid #000; padding: 10px; vertical-align: middle;">
                     {{ $permit->hse_representative ?? '-' }}
                 </td>
@@ -405,39 +438,39 @@
 
             {{-- II. PERNYATAAN DAN PERSETUJUAN --}}
             <tr>
-                <td colspan="3" class="section-blue" style="background-color: {{ $theme['bg'] }}; color: {{ $theme['text'] }}; border: 1px solid #000; text-align: center; font-weight: bold; padding: 10px; font-size: 16px;">
+                <td colspan="3" class="section-blue" style="background-color: {{ $theme['bg'] }}; color: {{ $theme['text'] }}; border-top: 1px solid #000; border-bottom: 1px solid #000;">
                     Pernyataan dan Persetujuan
                 </td>
             </tr>
             
             {{-- Baris Pernyataan Perusahaan --}}
             <tr>
-                <td style="border: 2px solid #000; text-align: center; padding: 20px; vertical-align: middle; width: 80%;">
-                    <strong style="display: block; margin-bottom: 8px; font-size: 16px;">Pernyataan Perusahaan</strong>
-                    <div style="font-size: 14px; line-height: 1.5; text-align: justify; padding: 0 10px;">
+                <td style="border: 1px solid #000; text-align: left; padding: 12px; vertical-align: middle; width: 85%;">
+                    <strong style="display: block; margin-bottom: 4px; font-size: 14px;">Pernyataan Perusahaan</strong>
+                    <div style="font-size: 13px; line-height: 1.4; text-align: justify;">
                         Bahwa dengan segala ketentuan diatas maka kami dari Perusahaan Pelaksana Pekerjaan terkait Izin Kerja ini akan bertanggung jawab atas segala kepatuhan akan ketentuan dan aturan UU dan akan melaksanakan semua kegiatan di lokasi kerja BIC dengan tetap mempertahankan nilai-nilai moral kemanusiaan serta penerapan K3 Perusahaan dengan sebaik-baiknya.
                     </div>
                 </td>
-                <td colspan="2" style="padding: 0; border: 2px solid #000; width: 80px;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr><td style="border-bottom: 2px solid #000; text-align: center; padding: 4px; font-weight: bold; font-size:12px;">Status</td></tr>
-                        <tr><td style="text-align: center; padding: 6px; font-weight: 700; font-size:12px; color: #000000;">{{ $permit->agreed_to_terms ? 'SETUJU' : '-' }}</td></tr>
+                <td colspan="2" style="padding: 0; border: 1px solid #000; width: 15%; vertical-align: stretch;">
+                    <table class="inner-status-table">
+                        <tr><td>Status</td></tr>
+                        <tr><td style="padding: 15px 0 !important; font-weight: bold; font-size: 14px;">{{ $permit->agreed_to_terms ? 'SETUJU' : '-' }}</td></tr>
                     </table>
                 </td>
             </tr>
 
             {{-- Baris Permit Applicant --}}
             <tr>
-                <td style="border: 2px solid #000; text-align: center; padding: 20px; vertical-align: middle;">
-                    <strong style="display: block; margin-bottom: 8px; font-size: 16px;">Permit Applicant</strong>
-                    <div style="font-size: 14px; line-height: 2; text-align: justify; padding: 0 10px;">
+                <td style="border: 1px solid #000; text-align: left; padding: 12px; vertical-align: middle;">
+                    <strong style="display: block; margin-bottom: 4px; font-size: 14px;">Permit Applicant</strong>
+                    <div style="font-size: 13px; line-height: 1.4; text-align: justify;">
                         (Saya sudah memeriksa Kondisi kerja dan memastikan aspek keselamatannya. Semua kondisi yang ditentukan dalam permit ini harus dilengkapi di lokasi kerja sebelum pekerjaan dimulai)
                     </div>
                 </td>
-                <td colspan="2" style="padding: 0; border: 2px solid #000; width: 80px;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr><td style="border-bottom: 2px solid #000; text-align: center; padding: 4px; font-weight: bold; font-size:12px;">Status</td></tr>
-                        <tr><td style="text-align: center; padding: 6px; font-weight: 700; font-size:12px; color: #000000;">{{ $permit->applicant_confirmation ? 'SETUJU' : '-' }}</td></tr>
+                <td colspan="2" style="padding: 0; border: 1px solid #000; width: 15%; vertical-align: stretch;">
+                    <table class="inner-status-table">
+                        <tr><td>Status</td></tr>
+                        <tr><td style="padding: 15px 0 !important; font-weight: bold; font-size: 14px;">{{ $permit->applicant_confirmation ? 'SETUJU' : '-' }}</td></tr>
                     </table>
                 </td>
             </tr>
@@ -445,24 +478,24 @@
             {{-- III. TANDA TANGAN --}}
             <tr>
                 <td colspan="3" style="padding: 0;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr style="text-align: center; font-weight: bold; font-size: 14px; background-color: #f2f2f2;">
-                            <td style="border-right: 2px solid #000; border-bottom: 1px solid #000; padding: 8px; width: 50%;">Nama Pimpinan / Manager Perusahaan Pelaksana Pekerjaan:</td>
-                            <td style="border-bottom: 2px solid #000; padding: 8px; width: 50%;">Nama Permit Applicant:</td>
+                    <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                        <tr style="text-align: center; font-weight: bold; font-size: 13px; background-color: #f2f2f2;">
+                            <td style="border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 6px; width: 50%;">Nama Pimpinan / Manager Perusahaan Pelaksana Pekerjaan:</td>
+                            <td style="border-bottom: 1px solid #000; padding: 6px; width: 50%;">Nama Permit Applicant:</td>
                         </tr>
                         <tr style="text-align: center; font-weight: bold;">
-                            <td style="border-right: 2px solid #000; padding: 10px;">{{ $permit->manager_name ?? '-' }}</td>
-                            <td style="border-left: 2px solid #000; padding: 10px;">{{ $permit->applicant_name ?? '-' }}</td>
+                            <td style="border-right: 1px solid #000; padding: 6px; font-size: 13px;">{{ $permit->manager_name ?? '-' }}</td>
+                            <td style="padding: 6px; font-size: 13px;">{{ $permit->applicant_name ?? '-' }}</td>
                         </tr>
                         <tr>
-                            <td style="border-right: 2px solid #000; height: 80px; text-align: center; vertical-align: middle;">
+                            <td style="border-right: 1px solid #000; height: 65px; text-align: center; vertical-align: middle;">
                                 @if($permit->signature_manager)
-                                    <img src="{{ $permit->signature_manager }}" style="height: 40px;">
+                                    <img src="{{ $permit->signature_manager }}" style="height: 45px;">
                                 @endif
                             </td>
-                            <td style="border-left: 2px solid #000; height: 80px; text-align: center; vertical-align: middle;">
+                            <td style="text-align: center; vertical-align: middle; height: 65px;">
                                 @if($permit->signature_applicant)
-                                    <img src="{{ $permit->signature_applicant }}" style="height: 40px;">
+                                    <img src="{{ $permit->signature_applicant }}" style="height: 45px;">
                                 @endif
                             </td>
                         </tr>

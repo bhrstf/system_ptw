@@ -14,6 +14,7 @@ class Audit extends Model
     protected $fillable = [
         'permit_id',
         'finding',
+        'inspection_location',
         'status',
     ];
 

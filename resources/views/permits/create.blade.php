@@ -135,31 +135,48 @@
                     <label class="fw-bold mb-3 border-top pt-4">PPE (Personal Protective Equipment)</label>
                     <div class="row mb-4">
                         @foreach(\App\Models\Permit::getPpeList() as $category=>$items)
-                        <div class="col-12 fw-bold small text-primary mt-2 mb-2">{{ $category }}</div>
                         @php $catSlug = Str::slug($category); @endphp
-                        @foreach($items as $ppe)
-                        <div class="col-md-4 col-6 mb-1 ppe-container">
-                            <div class="form-check"><input type="checkbox" name="ppe[]" value="{{ $ppe }}" class="form-check-input risk-checkbox"><label class="form-check-label small">{{ $ppe }}</label></div>
-                            @if(str_contains(strtolower($ppe), 'lainnya'))
-                            <div class="other-input-container d-none">
-                                <input type="text" name="ppe_other[{{ $catSlug }}]" class="form-control form-control-sm" placeholder="Sebutkan lainnya...">
+                        
+                        {{-- Category Header with N/A Checkbox --}}
+                        <div class="col-12 mb-2 d-flex align-items-center justify-content-between">
+                            <div class="fw-bold small text-primary">{{ $category }}</div>
+                            <div class="form-check">
+                                <input type="checkbox" 
+                                    name="ppe_na[]" 
+                                    value="{{ $category }}" 
+                                    id="ppe_na_{{ $catSlug }}" 
+                                    class="form-check-input ppe-na-checkbox"
+                                    data-category="{{ $catSlug }}">
+                                <label class="form-check-label small" for="ppe_na_{{ $catSlug }}">N/A</label>
                             </div>
-                            <script>
-                            (function() {
-                                const container = document.currentScript.parentElement.querySelector('.other-input-container');
-                                if (!container) return;
-                                const inputField = container.querySelector('input, textarea');
-                                const hasValue = inputField && inputField.value.trim() !== '';
-                                if (hasValue) {
-                                    container.classList.remove('d-none');
-                                } else {
-                                    container.classList.add('d-none');
-                                }
-                            })();
-                            </script>
-                            @endif
                         </div>
-                        @endforeach
+                        
+                        {{-- PPE Items Wrapper --}}
+                        <div class="col-12 ppe-items-wrapper" data-category="{{ $catSlug }}">
+                            @foreach($items as $ppe)
+                            <div class="col-md-4 col-6 mb-1 ppe-container d-inline-block" style="width: calc(33.333% - 8px); margin-right: 8px;">
+                                <div class="form-check"><input type="checkbox" name="ppe[]" value="{{ $ppe }}" class="form-check-input risk-checkbox"><label class="form-check-label small">{{ $ppe }}</label></div>
+                                @if(str_contains(strtolower($ppe), 'lainnya'))
+                                <div class="other-input-container d-none">
+                                    <input type="text" name="ppe_other[{{ $catSlug }}]" class="form-control form-control-sm" placeholder="Sebutkan lainnya...">
+                                </div>
+                                <script>
+                                (function() {
+                                    const container = document.currentScript.parentElement.querySelector('.other-input-container');
+                                    if (!container) return;
+                                    const inputField = container.querySelector('input, textarea');
+                                    const hasValue = inputField && inputField.value.trim() !== '';
+                                    if (hasValue) {
+                                        container.classList.remove('d-none');
+                                    } else {
+                                        container.classList.add('d-none');
+                                    }
+                                })();
+                                </script>
+                                @endif
+                            </div>
+                            @endforeach
+                        </div>
                         @endforeach
                     </div>
 
@@ -189,7 +206,7 @@
                                                     $isBypass = str_contains(strtolower($textValue), 'bypass'); 
                                                 @endphp
                                                 
-                                                <div class="col-md-6 mb-2 risk-item">
+                                                <div class="col-md-6 mb-2 checklist-container">
                                                     <div class="form-check">
                                                         <input type="checkbox" name="safety_checklists[]" value="{{ $textValue }}" class="form-check-input risk-checkbox" @if($isBypass) data-is-bypass="true" @endif> 
                                                         <label class="form-check-label small text-muted">{{ $textValue }}</label>
@@ -297,6 +314,27 @@
     <script>
     // 1. Logika Checkbox & Visibility (Bagian 1 -> 2, Input Lainnya, Bypass)
     document.addEventListener('change', function(e) {
+    
+    // ===== N/A CHECKBOX LOGIC (NEW) =====
+    if (e.target.classList.contains('ppe-na-checkbox')) {
+        const naCheckbox = e.target;
+        const category = naCheckbox.dataset.category;
+        const wrapper = document.querySelector(`.ppe-items-wrapper[data-category="${category}"]`);
+        
+        if (wrapper) {
+            if (naCheckbox.checked) {
+                // Hide items & uncheck all checkboxes
+                wrapper.style.display = 'none';
+                wrapper.querySelectorAll('input[type="checkbox"]:not([name="ppe_na[]"])').forEach(cb => {
+                    cb.checked = false;
+                });
+            } else {
+                // Show items again
+                wrapper.style.display = 'block';
+            }
+        }
+    }
+    
     if (e.target.classList.contains('risk-checkbox')) {
         const checkbox = e.target;
         const section = checkbox.closest('.checklist-section');
@@ -314,7 +352,7 @@
 
         // 2. Logika Input Lainnya (Versi Gabungan/Clean)
         // Kita gunakan koma untuk menyeleksi semua jenis container sekaligus
-        const riskItem = checkbox.closest('.risk-item, .hazard-container, .ppe-container');
+        const riskItem = checkbox.closest('.checklist-container, .hazard-container, .ppe-container');
         if (riskItem) {
             const otherInput = riskItem.querySelector('.other-input-container');
             if (otherInput) {
@@ -377,6 +415,21 @@
             } else {
                 container.classList.add('d-none');
             }
+        }
+    });
+
+    // Initialize checklist .other-input-container visibility on page load
+    document.querySelectorAll('.checklist-container').forEach(container => {
+        const checkbox = container.querySelector('input[type="checkbox"]');
+        const otherInputContainer = container.querySelector('.other-input-container');
+        
+        if (!otherInputContainer || !checkbox) return;
+        
+        // Show container ONLY jika checkbox is checked
+        if (checkbox.checked) {
+            otherInputContainer.classList.remove('d-none');
+        } else {
+            otherInputContainer.classList.add('d-none');
         }
     });
 

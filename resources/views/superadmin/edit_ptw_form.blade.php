@@ -224,36 +224,58 @@
                             $ppeOtherMap = $permit->ppe_other_map ?? [];
                         @endphp
                         @foreach(\App\Models\Permit::getPpeList() as $category=>$items)
-                        <div class="col-12 fw-bold small text-primary mt-2 mb-2">{{ $category }}</div>
                         @php $catSlug = Str::slug($category); @endphp
-                        @foreach($items as $ppe)
-                        <div class="col-md-4 col-6 mb-1 ppe-container">
-                            <div class="form-check">
-                                @php 
-                                    $isLainnya = str_contains(strtolower($ppe), 'lainnya');
-                                    $uniqueValue = $isLainnya ? 'Lainnya_' . $catSlug : $ppe;
-                                    
-                                    if ($isLainnya) {
-                                        $otherValue = $ppeOtherMap[$catSlug] ?? '';
-                                        $isChecked = in_array($uniqueValue, $curPpe) || !empty($otherValue);
-                                    } else {
-                                        $isChecked = in_array($uniqueValue, $curPpe);
-                                    }
-                                @endphp
-                                <input type="checkbox" name="ppe[]" value="{{ $uniqueValue }}" class="form-check-input risk-checkbox" {{ $isChecked ? 'checked' : '' }}>
-                                <label class="form-check-label small">{{ $ppe }}</label>
-                            </div>
-                            @if($isLainnya)
-                            @php 
-                                $ppeOtherVal = $ppeOtherMap[$catSlug] ?? '';
-                                $ppeOtherVal = is_array($ppeOtherVal) ? implode(', ', $ppeOtherVal) : $ppeOtherVal;
-                            @endphp
-                            <div class="other-input-container {{ $isChecked ? '' : 'd-none' }}">
-                                <input type="text" name="ppe_other[{{ $catSlug }}]" class="form-control form-control-sm" value="{{ $ppeOtherVal }}" placeholder="Sebutkan lainnya...">
-                            </div>
-                            @endif
+                        
+                        {{-- Category Header --}}
+                        <div class="col-12 mb-2">
+                            <div class="fw-bold small text-primary">{{ $category }}</div>
                         </div>
-                        @endforeach
+                        
+                        {{-- PPE Items Wrapper --}}
+                        <div class="col-12 ppe-items-wrapper" data-category="{{ $catSlug }}" style="{{ in_array('NA_' . $catSlug, $curPpe) ? 'display: none;' : '' }}">
+                            @foreach($items as $ppe)
+                            <div class="col-md-4 col-6 mb-1 ppe-container d-inline-block" style="width: calc(33.333% - 8px); margin-right: 8px;">
+                                <div class="form-check">
+                                    @php 
+                                        $isLainnya = str_contains(strtolower($ppe), 'lainnya');
+                                        $uniqueValue = $isLainnya ? 'Lainnya_' . $catSlug : $ppe;
+                                        
+                                        if ($isLainnya) {
+                                            $otherValue = $ppeOtherMap[$catSlug] ?? '';
+                                            $isChecked = in_array($uniqueValue, $curPpe) || !empty($otherValue);
+                                        } else {
+                                            $isChecked = in_array($uniqueValue, $curPpe);
+                                        }
+                                    @endphp
+                                    <input type="checkbox" name="ppe[]" value="{{ $uniqueValue }}" class="form-check-input risk-checkbox" {{ $isChecked ? 'checked' : '' }}>
+                                    <label class="form-check-label small">{{ $ppe }}</label>
+                                </div>
+                                @if($isLainnya)
+                                @php 
+                                    $ppeOtherVal = $ppeOtherMap[$catSlug] ?? '';
+                                    $ppeOtherVal = is_array($ppeOtherVal) ? implode(', ', $ppeOtherVal) : $ppeOtherVal;
+                                @endphp
+                                <div class="other-input-container {{ $isChecked ? '' : 'd-none' }}">
+                                    <input type="text" name="ppe_other[{{ $catSlug }}]" class="form-control form-control-sm" value="{{ $ppeOtherVal }}" placeholder="Sebutkan lainnya...">
+                                </div>
+                                @endif
+                            </div>
+                            @endforeach
+                            
+                            {{-- N/A Checkbox Row --}}
+                            <div class="col-md-4 col-6 mb-1 ppe-container d-inline-block" style="width: calc(33.333% - 8px); margin-right: 8px;">
+                                <div class="form-check">
+                                    <input type="checkbox" 
+                                        name="ppe_na[]" 
+                                        value="{{ $category }}" 
+                                        id="ppe_na_{{ $catSlug }}" 
+                                        class="form-check-input ppe-na-checkbox"
+                                        data-category="{{ $catSlug }}"
+                                        {{ in_array('NA_' . $catSlug, $curPpe) ? 'checked' : '' }}>
+                                    <label class="form-check-label small" for="ppe_na_{{ $catSlug }}">N/A</label>
+                                </div>
+                            </div>
+                        </div>
                         @endforeach
                     </div>
 
@@ -695,6 +717,28 @@
             }
 
             // --- EVENT LISTENERS ---
+            
+            // N/A Checkbox Handler (NEW)
+            document.querySelectorAll('.ppe-na-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const category = this.dataset.category;
+                    const wrapper = document.querySelector(`.ppe-items-wrapper[data-category="${category}"]`);
+                    
+                    if (wrapper) {
+                        if (this.checked) {
+                            // Hide items & uncheck all checkboxes
+                            wrapper.style.display = 'none';
+                            wrapper.querySelectorAll('input[type="checkbox"]:not([name="ppe_na[]"])').forEach(cb => {
+                                cb.checked = false;
+                            });
+                        } else {
+                            // Show items again
+                            wrapper.style.display = 'block';
+                        }
+                    }
+                });
+            });
+            
             document.querySelectorAll('.risk-checkbox').forEach(cb => {
                 cb.addEventListener('change', function() {
                     handleRiskCheckbox(this);

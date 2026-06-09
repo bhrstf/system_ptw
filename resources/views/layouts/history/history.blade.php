@@ -55,9 +55,35 @@
         .btn-navy { background: var(--navy-sidebar); color: white; border: none; transition: 0.3s; }
         .btn-navy:hover { background: #001D4D; color: white; transform: translateY(-2px); }
 
-        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        /* ========================================================
+           MODIFIKASI CSS: AKTIFKAN SCROLLBAR VERTIKAL DI HISTORY TABLE
+           ======================================================== */
+        .table-responsive { 
+            overflow-x: auto; 
+            overflow-y: auto;                  /* Mengaktifkan scroll vertikal */
+            max-height: 480px;                 /* Batas tinggi tabel sebelum scroll aktif */
+            -webkit-overflow-scrolling: touch; 
+            border-radius: 12px;
+            border: 1px solid #f1f5f9;
+        }
+        
+        /* Kunci posisi header (sticky) saat scroll vertikal berjalan */
+        .table-responsive table thead th {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 5;
+            box-shadow: inset 0 -2px 0 #f1f5f9; /* Mempertahankan garis bawah header */
+        }
+
         .table { min-width: 900px; }
         .table thead th { white-space: nowrap; font-weight: 800; letter-spacing: 0.5px; border-bottom: 2px solid #f1f5f9; }
+
+        /* Desain scrollbar tipis modern */
+        .table-responsive::-webkit-scrollbar { width: 6px; height: 6px; }
+        .table-responsive::-webkit-scrollbar-track { background: #f8fafc; }
+        .table-responsive::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .table-responsive::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         @media (max-width: 991px) {
             .main-wrapper { margin-left: 0 !important; }
@@ -112,7 +138,7 @@
                 </form>
             </div>
 
-            {{-- TABLE SECTION --}}
+            {{-- TABLE SECTION WITH SCROLL --}}
             <div class="card-custom p-4">
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
@@ -131,7 +157,6 @@
                             @forelse($histories as $h)
                             <tr>
                                 <td class="fw-bold">
-                                    {{-- UPDATE: Tampilkan nomor resmi jika ada --}}
                                     @if($h->ptw_number)
                                         <span class="text-primary">{{ $h->ptw_number }}</span>
                                     @else
@@ -174,7 +199,7 @@
                                             <i class="fas fa-eye"></i>
                                         </a>
 
-                                        {{-- UPDATE: Tombol Selesaikan (Hanya untuk Admin & Status Active) --}}
+                                        {{-- Tombol Selesaikan (Hanya untuk Admin & Status Active) --}}
                                         @if($h->status === 'active' && $isApprover)
                                             <form action="{{ route('history.complete', $h->id) }}" method="POST" onsubmit="return confirm('Apakah pekerjaan ini sudah selesai dan permit siap ditutup?')">
                                                 @csrf

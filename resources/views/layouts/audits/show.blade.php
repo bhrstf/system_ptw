@@ -124,6 +124,8 @@
                     <div class="col-md-6">
                         <div class="info-label">Lokasi Area Kerja</div>
                         <div class="info-value">{{ $audit->permit->location }}</div>
+                        <div class="info-label">Lokasi Inspeksi</div>
+                        <div class="info-value">{{ $audit->inspection_location ?? '-' }}</div>
                         <div class="info-label">Waktu Inspeksi Selesai</div>
                         <div class="info-value">{{ $audit->created_at->translatedFormat('d F Y, H:i') }} WIB</div>
                     </div>

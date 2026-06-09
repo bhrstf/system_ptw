@@ -38,6 +38,7 @@ class AuditController extends Controller
         // Validasi input
         $request->validate([
             'permit_id' => 'required|exists:permits,id',
+            'inspection_location' => 'required|string',
             'finding'   => 'required|string|min:5',
         ]);
 
@@ -45,6 +46,7 @@ class AuditController extends Controller
             // Simpan data ke database
             Audit::create([
                 'permit_id' => $request->permit_id,
+                'inspection_location' => $request->inspection_location,
                 'finding'   => $request->finding,
                 'status'    => 'verified'
             ]);

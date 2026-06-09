@@ -54,9 +54,34 @@
         .btn-submit { background: var(--navy-sidebar); color: white; padding: 12px 30px; border-radius: 12px; font-weight: 700; border: none; transition: 0.3s; }
         .btn-submit:hover { background: #001D4D; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 51, 128, 0.3); }
 
-        .table thead th { background: #F8FAFC; border: none; color: #64748B; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; padding: 15px; }
+        /* ========================================================
+           TAMBAHAN CSS BARU: AKTIFKAN SCROLL PADA TABEL LOG AUDIT 
+           ======================================================== */
+        .table-scroll-container {
+            max-height: 380px; /* Batas tinggi wadah tabel sebelum memunculkan scrollbar */
+            overflow-y: auto;  /* Mengaktifkan fungsi scroll vertikal */
+            border-radius: 12px;
+            border: 1px solid #f1f5f9;
+        }
+
+        /* Membuat header tabel tetap membeku di atas (sticky) saat di-scroll */
+        .table-scroll-container table thead th {
+            position: sticky;
+            top: 0;
+            background: #F8FAFC;
+            z-index: 2;
+            box-shadow: inset 0 -1px 0 #E2E8F0;
+        }
+
+        .table thead th { color: #64748B; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; padding: 15px; border: none; }
         .table tbody td { padding: 15px; vertical-align: middle; border-color: #F1F5F9; }
         .badge-completed { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 800; padding: 6px 12px; border-radius: 8px; }
+
+        /* Kustomisasi scrollbar tipis modern */
+        .table-scroll-container::-webkit-scrollbar { width: 6px; }
+        .table-scroll-container::-webkit-scrollbar-track { background: #f1f5f9; }
+        .table-scroll-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .table-scroll-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         /* --- RESPONSIVE BREAKPOINTS --- */
         @media (max-width: 991px) {
@@ -108,7 +133,6 @@
                                         <option selected disabled>Pilih Permit yang akan diaudit</option>
                                         @foreach($permits as $permit)
                                             <option value="{{ $permit->id }}" data-location="{{ $permit->location }}">
-                                                {{-- LOGIKA BARU: Kalau ada nomor resmi tampilkan, kalau kosong langsung jenis pekerjaan --}}
                                                 @if($permit->ptw_number)
                                                     {{ $permit->ptw_number }} - 
                                                 @endif
@@ -119,7 +143,7 @@
                                 </div>
                                 <div class="col-md-12">
                                     <label class="form-label">Lokasi Inspeksi</label>
-                                    <input type="text" id="locationInput" class="form-control" placeholder="Lokasi akan terisi otomatis" readonly style="background: #f1f5f9;">
+                                    <input type="text" id="locationInput" name="inspection_location" class="form-control" placeholder="Masukkan lokasi inspeksi..." required>
                                 </div>
                             </div>
                         </div>
@@ -137,8 +161,9 @@
 
                     <div class="audit-card">
                         <div class="section-title"><i class="fas fa-history"></i> Log Audit Terbaru</div>
-                        <div class="table-responsive">
-                            <table class="table">
+                        
+                        <div class="table-scroll-container table-responsive">
+                            <table class="table mb-0">
                                 <thead>
                                     <tr>
                                         <th>Permit ID</th>
@@ -151,7 +176,6 @@
                                     @forelse($audits as $item)
                                         <tr>
                                             <td>
-                                                {{-- Mengambil ptw_number langsung dari database melalui relasi --}}
                                                 <span class="fw-bold">
                                                     {{ $item->permit->ptw_number ?? 'N/A' }}
                                                 </span><br>
@@ -169,6 +193,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        
                     </div>
                 </div>
 
@@ -206,12 +231,6 @@
                     };
                 }
             }
-
-            // Auto-fill Location
-            $('#permitSelect').on('change', function() {
-                var lokasi = $(this).find(':selected').data('location');
-                $('#locationInput').val(lokasi || '');
-            });
         });
     </script>
 </body>

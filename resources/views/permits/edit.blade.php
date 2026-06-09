@@ -220,63 +220,80 @@
                         @endphp
 
                         @foreach(\App\Models\Permit::getPpeList() as $category => $items)
-                            <div class="col-12 fw-bold small text-primary mt-2 mb-2">{{ $category }}</div>
                             @php $catSlug = Str::slug($category); @endphp
                             
-                            @foreach($items as $ppe)
-                                @php
-                                    $isLainnya = str_contains(strtolower($ppe), 'lainnya');
-                                    $uniqueValue = $isLainnya ? 'Lainnya_' . $catSlug : $ppe;
-                                    
-                                    // Determine checkbox state
-                                    if ($isLainnya) {
-                                        // Centang jika: (1) Lainnya_[slug] ada di ppe array, ATAU (2) ada value di ppeOtherMap[$catSlug]
-                                        $otherValue = $ppeOtherMap[$catSlug] ?? '';
-                                        $hasOtherValue = !empty($otherValue);
-                                        $isChecked = in_array($uniqueValue, $curPpe) || $hasOtherValue;
-                                    } else {
-                                        $isChecked = in_array($uniqueValue, $curPpe);
-                                    }
-                                @endphp
-
-                                <div class="col-md-4 col-6 mb-1 ppe-container">
-                                    <div class="form-check">
-                                        <input type="checkbox" 
-                                            name="ppe[]" 
-                                            value="{{ $uniqueValue }}" 
-                                            class="form-check-input risk-checkbox" 
-                                            {{ $isChecked ? 'checked' : '' }}>
-                                        <label class="form-check-label small">{{ $ppe }}</label>
-                                    </div>
-                                    
-                                    @if($isLainnya)
-                                        <div class="other-input-container {{ $isChecked ? '' : 'd-none' }}">
-                                            @php
-                                                $inputValue = $ppeOtherMap[$catSlug] ?? '';
-                                            @endphp
-                                            <input type="text" 
-                                                name="ppe_other[{{ $catSlug }}]" 
-                                                class="form-control form-control-sm" 
-                                                value="{{ $inputValue }}" 
-                                                placeholder="Sebutkan lainnya...">
-                                        </div>
-                                        <script>
-                                        (function() {
-                                            const container = document.currentScript.parentElement.querySelector('.other-input-container');
-                                            if (!container) return;
-                                            const checkbox = document.currentScript.parentElement.querySelector('input[type="checkbox"]');
-                                            if (!checkbox) return;
-                                            // Only show if checkbox is checked
-                                            if (checkbox.checked) {
-                                                container.classList.remove('d-none');
-                                            } else {
-                                                container.classList.add('d-none');
-                                            }
-                                        })();
-                                        </script>
-                                    @endif
+                            {{-- Category Header with N/A Checkbox --}}
+                            <div class="col-12 mb-2 d-flex align-items-center justify-content-between">
+                                <div class="fw-bold small text-primary">{{ $category }}</div>
+                                <div class="form-check">
+                                    <input type="checkbox" 
+                                        name="ppe_na[]" 
+                                        value="{{ $category }}" 
+                                        id="ppe_na_{{ $catSlug }}" 
+                                        class="form-check-input ppe-na-checkbox"
+                                        data-category="{{ $catSlug }}"
+                                        {{ in_array('NA_' . $catSlug, $curPpe) ? 'checked' : '' }}>
+                                    <label class="form-check-label small" for="ppe_na_{{ $catSlug }}">N/A</label>
                                 </div>
-                            @endforeach
+                            </div>
+                            
+                            {{-- PPE Items Wrapper --}}
+                            <div class="col-12 ppe-items-wrapper" data-category="{{ $catSlug }}" style="{{ in_array('NA_' . $catSlug, $curPpe) ? 'display: none;' : '' }}">
+                                @foreach($items as $ppe)
+                                    @php
+                                        $isLainnya = str_contains(strtolower($ppe), 'lainnya');
+                                        $uniqueValue = $isLainnya ? 'Lainnya_' . $catSlug : $ppe;
+                                        
+                                        // Determine checkbox state
+                                        if ($isLainnya) {
+                                            // Centang jika: (1) Lainnya_[slug] ada di ppe array, ATAU (2) ada value di ppeOtherMap[$catSlug]
+                                            $otherValue = $ppeOtherMap[$catSlug] ?? '';
+                                            $hasOtherValue = !empty($otherValue);
+                                            $isChecked = in_array($uniqueValue, $curPpe) || $hasOtherValue;
+                                        } else {
+                                            $isChecked = in_array($uniqueValue, $curPpe);
+                                        }
+                                    @endphp
+
+                                    <div class="col-md-4 col-6 mb-1 ppe-container d-inline-block" style="width: calc(33.333% - 8px); margin-right: 8px;">
+                                        <div class="form-check">
+                                            <input type="checkbox" 
+                                                name="ppe[]" 
+                                                value="{{ $uniqueValue }}" 
+                                                class="form-check-input risk-checkbox" 
+                                                {{ $isChecked ? 'checked' : '' }}>
+                                            <label class="form-check-label small">{{ $ppe }}</label>
+                                        </div>
+                                        
+                                        @if($isLainnya)
+                                            <div class="other-input-container {{ $isChecked ? '' : 'd-none' }}">
+                                                @php
+                                                    $inputValue = $ppeOtherMap[$catSlug] ?? '';
+                                                @endphp
+                                                <input type="text" 
+                                                    name="ppe_other[{{ $catSlug }}]" 
+                                                    class="form-control form-control-sm" 
+                                                    value="{{ $inputValue }}" 
+                                                    placeholder="Sebutkan lainnya...">
+                                            </div>
+                                            <script>
+                                            (function() {
+                                                const container = document.currentScript.parentElement.querySelector('.other-input-container');
+                                                if (!container) return;
+                                                const checkbox = document.currentScript.parentElement.querySelector('input[type="checkbox"]');
+                                                if (!checkbox) return;
+                                                // Only show if checkbox is checked
+                                                if (checkbox.checked) {
+                                                    container.classList.remove('d-none');
+                                                } else {
+                                                    container.classList.add('d-none');
+                                                }
+                                            })();
+                                            </script>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
                         @endforeach
                     </div>
 
@@ -341,10 +358,10 @@
                                                 if($hasAdditional) {
                                                     $fieldName = $q['input_tambahan']['name'];
                                                     $oldValue = $curChecklistOther[$fieldName] ?? ($permit->$fieldName ?? '');
-                                                    $shouldShow = $isChecked;
+                                                    $shouldShow = $isChecked || !empty($oldValue);
                                                 } elseif($isLainnya) {
                                                     $oldValue = $curChecklistOther[$chkSlug] ?? '';
-                                                    $shouldShow = $isChecked;
+                                                    $shouldShow = $isChecked || !empty($oldValue);
                                                 } else {
                                                     $shouldShow = false;
                                                     $oldValue = '';
@@ -377,8 +394,10 @@
                                                 if (!container) return;
                                                 const checkbox = document.currentScript.parentElement.querySelector('input[type="checkbox"]');
                                                 if (!checkbox) return;
-                                                // Only show if checkbox is checked
-                                                if (checkbox.checked) {
+                                                const inputField = container.querySelector('input, textarea');
+                                                const hasValue = inputField && inputField.value.trim() !== '';
+                                                // Show if checkbox is checked OR input field has value
+                                                if (checkbox.checked || hasValue) {
                                                     container.classList.remove('d-none');
                                                 } else {
                                                     container.classList.add('d-none');
@@ -608,7 +627,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('input[name="permit_type[]"]:checked').forEach(togglePWT);
     
-    // Enhanced initialization: show other-input-container ONLY jika checkbox checked
+    // Enhanced initialization: show other-input-container jika checkbox checked OR ada value
     // Iterate melalui SEMUA containers (hazard, ppe, checklist)
     document.querySelectorAll('.hazard-container, .ppe-container, .checklist-container').forEach(container => {
         const checkbox = container.querySelector('input[type="checkbox"]');
@@ -617,9 +636,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!otherInputContainer || !checkbox) return;
         
         const isChecked = checkbox.checked;
+        const inputField = otherInputContainer.querySelector('input, textarea');
+        const hasValue = inputField && inputField.value.trim() !== '';
         
-        // PENTING: Show container HANYA jika CHECKED (bukan berdasarkan value)
-        if (isChecked) {
+        // PENTING: Show container jika CHECKED atau jika ada VALUE
+        if (isChecked || hasValue) {
             otherInputContainer.classList.remove('d-none');
         } else {
             otherInputContainer.classList.add('d-none');
@@ -647,6 +668,28 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // --- 4. EVENT LISTENERS ---
+    
+    // N/A Checkbox Handler (NEW)
+    document.querySelectorAll('.ppe-na-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            const category = this.dataset.category;
+            const wrapper = document.querySelector(`.ppe-items-wrapper[data-category="${category}"]`);
+            
+            if (wrapper) {
+                if (this.checked) {
+                    // Hide items & uncheck all checkboxes
+                    wrapper.style.display = 'none';
+                    wrapper.querySelectorAll('input[type="checkbox"]:not([name="ppe_na[]"])').forEach(cb => {
+                        cb.checked = false;
+                    });
+                } else {
+                    // Show items again
+                    wrapper.style.display = 'block';
+                }
+            }
+        });
+    });
+    
     document.querySelectorAll('.risk-checkbox').forEach(cb => {
         cb.addEventListener('change', function() {
             handleRiskCheckbox(this);
