@@ -724,6 +724,17 @@ document.addEventListener('DOMContentLoaded', function () {
     toggleBypassContainer();
     document.querySelectorAll('input[name="safety_checklists[]"]').forEach(cb => cb.addEventListener('change', toggleBypassContainer));
 
+    // --- Fungsi Hapus Tanda Tangan (NEW) ---
+    window.clearPad = function(type) {
+        if (type === 'M' && padM) {
+            padM.clear();
+            document.getElementById('sm').value = '';
+        } else if (type === 'A' && padA) {
+            padA.clear();
+            document.getElementById('sa').value = '';
+        }
+    };
+
     // --- 5. SUBMIT ---
     const form = document.getElementById('permitForm');
     if (form) {

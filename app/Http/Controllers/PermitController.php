@@ -207,8 +207,11 @@ class PermitController extends Controller
             $request->validate([
                 'pic_lead' => 'required|string|max:255',
                 'pic_batamindo' => 'nullable|string|max:255',
+                'hazards' => 'required|array|min:1',
                 'hazards_other' => 'nullable|string|max:255',
+                'ppe' => 'required|array|min:1',
                 'ppe_other' => 'nullable|array',
+                'safety_checklists' => 'required|array|min:1',
                 'safety_checklists_other' => 'nullable|array', // Validasi array terstruktur
                 'man_power' => 'required|integer|min:1',
                 'ref_doc' => 'nullable|string|max:255',
@@ -222,6 +225,12 @@ class PermitController extends Controller
             ], [
                 'tools_text.required' => 'Kolom Tools/Equipment Used wajib diisi!',
                 'scope_text.required' => 'Kolom Detailed Work Scope wajib diisi!',
+                'hazards.required' => 'Minimal harus memilih 1 Hazard (Risiko)!',
+                'hazards.min' => 'Minimal harus memilih 1 Hazard (Risiko)!',
+                'ppe.required' => 'Minimal harus memilih 1 PPE (Alat Pelindung Diri)!',
+                'ppe.min' => 'Minimal harus memilih 1 PPE (Alat Pelindung Diri)!',
+                'safety_checklists.required' => 'Minimal harus memilih 1 Safety Checklist!',
+                'safety_checklists.min' => 'Minimal harus memilih 1 Safety Checklist!',
             ]);
 
             $data = $request->all();

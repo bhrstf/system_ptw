@@ -105,7 +105,7 @@
                 <div class="section-card">
                     <div class="section-title mb-4 fw-bold" style="color: #003380; border-left: 4px solid #3b82f6; padding-left: 10px;">Risk Mitigation</div>
                     
-                    <label class="fw-bold mb-3">Hazards Identification</label>
+                    <label class="fw-bold mb-3">Hazards Identification <span class="text-danger fw-bold">*</span></label>
                     <div class="row mb-4">
                         @foreach(\App\Models\Permit::getHazardList() as $hazard)
                         <div class="col-md-4 col-6 mb-2 hazard-container">
@@ -132,7 +132,7 @@
                         @endforeach
                     </div>
 
-                    <label class="fw-bold mb-3 border-top pt-4">PPE (Personal Protective Equipment)</label>
+                    <label class="fw-bold mb-3 border-top pt-4">PPE (Personal Protective Equipment) <span class="text-danger fw-bold">*</span></label>
                     <div class="row mb-4">
                         @foreach(\App\Models\Permit::getPpeList() as $category=>$items)
                         @php $catSlug = Str::slug($category); @endphp
@@ -181,6 +181,7 @@
                     </div>
 
                     <div id="checklist-master-wrapper">
+                        <label class="fw-bold mb-3 d-block">Safety Checklist <span class="text-danger fw-bold">*</span></label>
                         @foreach(\App\Models\Permit::getMasterChecklist() as $ptwType => $categories)
                             @php $theme = \App\Models\Permit::getPermitTheme($ptwType); @endphp
                             
@@ -448,6 +449,32 @@
         permitForm.addEventListener('submit', function(e) {
             // Debugging: Cek apakah script jalan
             console.log("Submit ditekan, memulai validasi...");
+
+            // 0. Validasi Hazards, PPE, dan Safety Checklists (BARU)
+            const hazardsChecked = document.querySelectorAll('input[name="hazards[]"]:checked').length;
+            const ppeChecked = document.querySelectorAll('input[name="ppe[]"]:checked').length;
+            const safetyChecklistsChecked = document.querySelectorAll('input[name="safety_checklists[]"]:checked').length;
+
+            if (hazardsChecked === 0) {
+                e.preventDefault();
+                alert('⚠️ Gagal: Minimal harus memilih 1 Hazard (Risiko) di bagian "3. IDENTIFIED HAZARDS"!');
+                document.querySelector('input[name="hazards[]"]').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+
+            if (ppeChecked === 0) {
+                e.preventDefault();
+                alert('⚠️ Gagal: Minimal harus memilih 1 PPE (Alat Pelindung Diri) di bagian "4. REQUIRED PPE"!');
+                document.querySelector('input[name="ppe[]"]').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+
+            if (safetyChecklistsChecked === 0) {
+                e.preventDefault();
+                alert('⚠️ Gagal: Minimal harus memilih 1 Safety Checklist di bagian "5. SAFETY CHECKLISTS & PERSONNEL"!');
+                document.querySelector('input[name="safety_checklists[]"]').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
 
             // 1. Validasi Quill
             const toolsText = quillTools.getText().trim();
